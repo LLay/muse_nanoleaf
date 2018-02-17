@@ -4,6 +4,8 @@ A tool to visualize eeg waves captured by a Muse headband on a network of DMX li
 ### Dependencies
 - [museSDK](http://developer.choosemuse.com/sdk/ios) (which includes [museIO](http://developer.choosemuse.com/tools/museio))
 - [pyliblo](http://das.nasophon.de/pyliblo/)
+- [OLA](https://www.openlighting.org/ola/mac-install/) (you can also `brew install ola`
+- DMX Drivers 
 - python 2.7
 
 ### Run it
@@ -13,3 +15,7 @@ A tool to visualize eeg waves captured by a Muse headband on a network of DMX li
 
 ### Code
 We used [this example](http://developer.choosemuse.com/research-tools-example/grabbing-data-from-museio-a-few-simple-examples-of-muse-osc-servers#python) to get started with pyliblo
+
+### Resources
+[Muse api](http://developer.choosemuse.com/tools/available-data)
+[OLA API](https://www.openlighting.org/ola/developer-documentation/python-api/)
