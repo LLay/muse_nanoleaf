@@ -8,10 +8,19 @@ A tool to visualize eeg waves captured by a Muse headband on a network of DMX li
 - DMX Drivers
 - python 2.7
 
+### Set up a light
+
+- run `olad -l 3`
+- Then find your device using ola_dev_info, you now need to connect the device's port to your universe
+- Then `ola_patch  -d {device number} -p {device port} -u {universe} e.g ola_patch  -d 1 -p 0 -u 1c`
+
+See demo.py for more info
+
 ### Run it
 - Connect the muse to your laptops bluetooth
-- run `muse-io --osc osc.udp://localhost:5000` to serve the muse data on port 5000 (if you wish to server the same data across multiple ports just add those as well: `muse-io --osc osc.udp://localhost:5000;osc.udp://localhost:5001`)
-- run the museServer (in a seperate window) `python src/museServer.py`
+- run `run olad -l 3`
+- run `muse-io --osc osc.udp://localhost:5000` (in a separate window) to serve the muse data on port 5000 (if you wish to server the same data across multiple ports just add those as well: `muse-io --osc osc.udp://localhost:5000;osc.udp://localhost:5001`)
+- run the museServer (in a separate window) `python src/museServer.py`
 
 ### Code
 Developed on OSX 10.13.3 High Sierra
