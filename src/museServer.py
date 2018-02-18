@@ -6,12 +6,15 @@ import time
 import threading
 import random
 import colorsys
+import pytweening
+
+from LightManager import Orcan2LightManager
 
 from guppy import hpy
 h = hpy()
 
 import urllib2
-from LightManager import Orcan2LightManager
+
 # Number of second over which we average eeg signals.
 ROLLING_EEG_WINDOW = 3
 # Number of second over which fade between user input and the default light animation.
@@ -19,7 +22,7 @@ USER_TO_DEFAULT_FADE_WINDOW = 5
 # The delay in seconds between loss of signal on all contacts and ..doing something about it
 CONTACT_LOS_TIMEOUT = 3
 # How often we update the lights. Measured in seconds. Minimum of 0.1 (You can go lower, but we only get data from the muse at 10Hz)
-LIGHT_UPDATE_INTERVAL = .01
+LIGHT_UPDATE_INTERVAL = 0.2
 # How often when render an new frame of the default animation
 DEFAULT_ANIMATION_RENDER_RATE = 0.1
 
@@ -54,12 +57,24 @@ class MovingAverage(object):
 def avg(*values):
     return reduce(lambda x, y: x + y, values) / len(values)
 
-def easeInOutQuad(t, b, c, d):
-	t /= d/2
-	if t < 1:
-		return c/2*t*t + b
-	t-=1
-	return -c/2 * (t*(t-2) - 1) + b
+# # @t is the current time (or position) of the tween. This can be seconds or frames, steps, seconds, ms, whatever - as long as the unit is the same as is used for the total time [3].
+# # @b is the beginning value of the property.
+# # @c is the change between the beginning and destination value of the property.
+# # @d is the total time of the tween.
+# def easeInOutQuad(t, b, c, d):
+# 	t /= d/2
+# 	if t < 1:
+# 		return c/2*t*t + b
+# 	t-=1
+# 	return -c/2 * (t*(t-2) - 1) + b
+
+def getIncrement(old_value, new_value, current_increment, final_increment):
+    percentComplete = abs(float(current_increment) / float(final_increment))
+    # print "current_increment", current_increment, "/ final_increment", final_increment, "percentComplete", percentComplete
+    diff = (old_value - new_value)
+    increment = diff * pytweening.easeInOutQuad(percentComplete)
+    # print "increment", increment, "diff", diff, "percentComplete",percentComplete,  "old_value", old_value, "new_value", new_value, "final_increment", final_increment, "current_increment", current_increment
+    return old_value - increment
 
 class LightMixer():
     def __init__(self):
@@ -79,13 +94,48 @@ class LightMixer():
         self.defaultColorThread.start()
 
     def serveDefaultColorAnimation(self, thread):
+        timeToNextColor = 0
+        currentTime = 0
+        r,g,b = 0,0,0 # Starting color
         while not thread.stopped():
-            h,s,l = random.random(), 0.5 + random.random()/2.0, 0.4 + random.random()/5.0
-            r,g,b = [int(256*i) for i in colorsys.hls_to_rgb(h,l,s)]
-            self.defaultColor.r = r
-            self.defaultColor.g = g
-            self.defaultColor.b = b
+            if currentTime == timeToNextColor:
+                r_old,g_old,b_old = r,g,b
+                # https://stackoverflow.com/questions/43437309/get-a-bright-random-colour-python
+                h,s,l = random.random(), 0.5 + random.random()/2.0, 0.4 + random.random()/5.0
+                r,g,b = [int(256*i) for i in colorsys.hls_to_rgb(h,l,s)]
+                timeToNextColor = random.randint(4/DEFAULT_ANIMATION_RENDER_RATE,6/DEFAULT_ANIMATION_RENDER_RATE)
+                currentTime = 0
+
+            thing = getIncrement(r_old, r, currentTime, timeToNextColor)
+            self.defaultColor.r = thing
+            self.defaultColor.g = getIncrement(g_old, g, currentTime, timeToNextColor)
+            self.defaultColor.b = getIncrement(b_old, b, currentTime, timeToNextColor)
+
+            # print "#### time:",currentTime, timeToNextColor, "Red range: ", r_old, r, "Red Val: ", self.defaultColor.r, thing
+            currentTime += 1
             time.sleep(DEFAULT_ANIMATION_RENDER_RATE)
+    #
+    # def serveDefaultColorAnimation(self, thread):
+    #
+    #     timeToNextColor = 0
+    #     currentTime = 0
+    #     r,g,b = 0,0,0 # Starting color
+    #     while not thread.stopped():
+    #         if currentTime == timeToNextColor:
+    #             r_old,g_old,b_old = r,g,b
+    #             # https://stackoverflow.com/questions/43437309/get-a-bright-random-colour-python
+    #             h,s,l = random.random(), 0.5 + random.random()/2.0, 0.4 + random.random()/5.0
+    #             r,g,b = [int(256*i) for i in colorsys.hls_to_rgb(h,l,s)]
+    #             timeToNextColor = random.randint(4/DEFAULT_ANIMATION_RENDER_RATE,6/DEFAULT_ANIMATION_RENDER_RATE)
+    #             currentTime = 0
+    #
+    #         self.defaultColor.r = easeInOutQuad(currentTime, r_old, abs(r - r_old), timeToNextColor)
+    #         self.defaultColor.g = easeInOutQuad(currentTime, g_old, abs(g - g_old), timeToNextColor)
+    #         self.defaultColor.b = easeInOutQuad(currentTime, b_old, abs(b - b_old), timeToNextColor)
+    #
+    #         print currentTime, r_old, abs(r - r_old), timeToNextColor, "RGB: ", self.defaultColor.r,self.defaultColor.g,self.defaultColor.b
+    #         currentTime += 1
+    #         time.sleep(DEFAULT_ANIMATION_RENDER_RATE)
 
     # This mixes the use and default colours depending on if the user is connected or not
     def updateMixedColor(self):
@@ -127,7 +177,7 @@ class DMXClient():
         try:
             self.mixer.updateState(new_user_state)
             colorToSendToLights = self.mixer.getColor()
-            print "colorToSendToLights", colorToSendToLights.r, colorToSendToLights.g, colorToSendToLights.b
+            print colorToSendToLights.r,",", colorToSendToLights.g, ",",colorToSendToLights.b
             self.lightManager.light.setRGB(int(colorToSendToLights.r), int(colorToSendToLights.g), int(colorToSendToLights.b))
         except Exception, err:
             print str(err)
