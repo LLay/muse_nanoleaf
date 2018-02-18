@@ -23,16 +23,24 @@ def ease(easingFunc, old_value, new_value, current_increment, final_increment):
 
 class LightMixer():
     def __init__(self, user_to_default_fade_window, default_animation_render_rate):
-        self.connected_rolling_mean_generator = MovingAverage(user_to_default_fade_window)
+        self.default_animation_render_rate = default_animation_render_rate
+
+        # These values help use keep track of when the user is connected to the muse
         self.connected_mean = 0
+        self.connected_rolling_mean_generator = MovingAverage(user_to_default_fade_window)
 
         self.userState = MuseState()
 
+        # The color that represents the muse data
         self.userColor = ColorState()
+        # The current colour of the default animation
         self.defaultColor = ColorState()
+        # The weighted mix of the user and default animation color.
+        # When the user connects (to the muse) this color will transition
+        # over 3 seconds to be their color, whe the user disconnects, this color
+        # transitions to the default animation color
         self.mixedColor = ColorState()
 
-        self.default_animation_render_rate = default_animation_render_rate
 
     def startDefaultColorAnimation(self):
         self.defaultColorThread = StoppableThread(self.serveDefaultColorAnimation, )
@@ -50,7 +58,6 @@ class LightMixer():
         while not thread.stopped():
             if currentTime == timeToNextBrightness:
                 brightness_old = brightness
-                # https://stackoverflow.com/questions/43437309/get-a-bright-random-colour-python
                 brightness = random.randint(75,100)
                 timeToNextBrightness = random.randint(6/self.default_animation_render_rate,8/self.default_animation_render_rate)
                 currentTime = 0
@@ -60,7 +67,6 @@ class LightMixer():
             currentTime += 1
             time.sleep(self.default_animation_render_rate)
         sys.exit()
-
 
     def serveDefaultColorAnimation(self, thread):
         timeToNextColor = 0
@@ -108,11 +114,9 @@ class LightMixer():
     def updateStateForSpotlight(self, user_state):
         self.userState = user_state
         self.connected_mean = self.connected_rolling_mean_generator.next(user_state.connected)
-        # We leave the user colors as black, to fade the spotlight when a user is connected
         self.updateMixedColor()
-
-    def getColor(self):
-        return self.mixedColor
+        # Note that we leave the user colors as black,
+        # to fade the spotlight off when a user is connected
 
     def getColor(self):
         return self.mixedColor
