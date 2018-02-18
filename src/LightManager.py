@@ -28,7 +28,6 @@ class Orcan2LightManager:
 	def SendDMXFrame(self):
 		self.clientWrapper.AddEvent(self.tickInterval, self.SendDMXFrame)
 		lightState = self.wrapArrayState(self.light.getStateAsArray())
-		print(lightState)
 		self.client.SendDmx(self.universe, lightState, self.DmxSent)
 
 	def wrapArrayState(self, state):

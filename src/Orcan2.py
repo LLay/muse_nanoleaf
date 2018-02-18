@@ -1,6 +1,6 @@
-from enum import Enum
+from enum import IntEnum
 
-class Mode(Enum):
+class Mode(IntEnum):
 	MODE_DMX_CONTROL = 0
 	MODE_JUMP = 51
 	MODE_FADE = 101
