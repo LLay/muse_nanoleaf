@@ -26,6 +26,9 @@ USER_TO_DEFAULT_FADE_WINDOW = 5
 # The delay in seconds between loss of signal on all contacts and ..doing something about it
 CONTACT_LOS_TIMEOUT = 3
 
+EEG_LIGHT_GROUP_ADDRESS= 1
+SPOTLIGHT_LIGHT_GROUP_ADDRESS = 8
+
 # Correct decimal place for relevant values. Don't change me!
 ROLLING_EEG_WINDOW *= 10
 CONTACT_LOS_TIMEOUT *= 10
@@ -35,21 +38,24 @@ def avg(*values):
 
 class DMXClient():
     # @selectedLights (int array) Which lights this client talks to
-    def __init__(self, selectedLights):
-        # self.lightManager = Orcan2LightManager(tickInterval=.01, selectedLights=selectedLights)
-        # thread = StoppableThread(target = self.lightManager.run)
-        # thread.start()
+    def __init__(self):
+        self.lightManager = Orcan2LightManager(tickInterval=.01)
+        thread = StoppableThread(target = self.lightManager.run)
+        thread.start()
         pass
 
-    def updateLights(self, color):
-        # self.lightManager.light.setRGB(int(color.r), int(color.g), int(color.b))
+    def createLightGroup(self, address, lightClass):
+        self.lightManager.createLightGroup(address, lightClass)
+        pass
+
+    def updateLightGroup(self, address, color):
+        self.lightManager.getLight(address).setRGB(int(color.r), int(color.g), int(color.b))
         pass
 
     def kill(self):
-        # self.mixer.kill()
-        # self.lightManager.thread.stop()
-        pass
+        self.lightManager.thread.stop()
         #TODO Implement self.lightManager.kill()
+        pass
 
 class NodeLeafClient():
     pass
@@ -81,21 +87,23 @@ class MuseServer(ServerThread):
         self.lightServerThreadDMX.start()
 
     def serveDMXLights(self, thread):
-        eegClient = DMXClient([1,2,3])
-        eegMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
-        eegMixer.startDefaultColorAnimation()
+        dmxClient = DMXClient()
+        dmxClient.createLightGroup(EEG_LIGHT_GROUP_ADDRESS, "Orcan2")
+        dmxClient.createLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, "Orcan2")
 
-        spotlightClient = DMXClient([4])
+        # Start color mixing
+        eegMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
         spotlightMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
-        spotlightMixer.startDefaultSpotlightAnimation
+        eegMixer.startDefaultColorAnimation()
+        spotlightMixer.startDefaultSpotlightAnimation()
 
         while not thread.stopped():
             try:
                 eegMixer.updateStateForEEG(self.state)
                 spotlightMixer.updateStateForSpotlight(self.state)
 
-                eegClient.updateLights(eegMixer.getColor())
-                spotlightClient.updateLights(spotlightMixer.getColor())
+                dmxClient.updateLightGroup(EEG_LIGHT_GROUP_ADDRESS, eegMixer.getColor())
+                dmxClient.updateLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, spotlightMixer.getColor())
 
                 # Debugging
                 eeg = eegMixer.getColor()

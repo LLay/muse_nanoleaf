@@ -2,6 +2,7 @@ import pytweening
 import random
 import colorsys
 import time
+import sys
 
 from HelperClasses import MuseState
 from MovingAverage import MovingAverage
@@ -44,20 +45,21 @@ class LightMixer():
     def serveDefaultSpotlightAnimation(self, thread):
         timeToNextColor = 0
         currentTime = 0
-        r,g,b = 255,255,255 # Starting color. White
+        self.defaultColor.r,self.defaultColor.g,self.defaultColor.b = 255,255,255 # Starting color. White
+        self.defaultColor.brightness = 75
         while not thread.stopped():
             if currentTime == timeToNextBrightness:
                 brightness_old = brightness
                 # https://stackoverflow.com/questions/43437309/get-a-bright-random-colour-python
-                brightness = random.randint(235,255)
+                brightness = random.randint(75,100)
                 timeToNextBrightness = random.randint(6/self.default_animation_render_rate,8/self.default_animation_render_rate)
                 currentTime = 0
 
-                self.defaultColor.brightness = ease(pytweening.easeInOutQuad, brightness_old, brightness, currentTime, timeToNextBrightness)
+            self.defaultColor.brightness = ease(pytweening.easeInOutQuad, brightness_old, brightness, currentTime, timeToNextBrightness)
 
-                currentTime += 1
-                time.sleep(self.default_animation_render_rate)
-            sys.exit()
+            currentTime += 1
+            time.sleep(self.default_animation_render_rate)
+        sys.exit()
 
 
     def serveDefaultColorAnimation(self, thread):
