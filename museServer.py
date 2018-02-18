@@ -4,19 +4,27 @@ from collections import deque
 import sys
 import time
 import threading
+import random
+import colorsys
 
 from guppy import hpy
 h = hpy()
 
+import urllib2
+
 # Number of second over which we average eeg signals.
-ROLLING_MEAN_WINDOW = 3
+ROLLING_EEG_WINDOW = 3
+# Number of second over which fade between user input and the default light animation.
+USER_TO_DEFAULT_FADE_WINDOW = 5
 # The delay in seconds between loss of signal on all contacts and ..doing something about it
 CONTACT_LOS_TIMEOUT = 3
-# How often we update the lights. Measured in seconds
-LIGHT_UPDATE_INTERVAL = 0.1
+# How often we update the lights. Measured in seconds. Minimum of 0.1 (You can go lower, but we only get data from the muse at 10Hz)
+LIGHT_UPDATE_INTERVAL = 1
+# How often when render an new frame of the default animation
+DEFAULT_ANIMATION_RENDER_RATE = 0.1
 
 # Correct decimal place for relevant values. Don't change me!
-ROLLING_MEAN_WINDOW *= 10
+ROLLING_EEG_WINDOW *= 10
 CONTACT_LOS_TIMEOUT *= 10
 
 # https://github.com/kamyu104/LeetCode/blob/master/Python/moving-average-from-data-stream.py
@@ -46,6 +54,93 @@ class MovingAverage(object):
 def avg(*values):
     return reduce(lambda x, y: x + y, values) / len(values)
 
+def easeInOutQuad(t, b, c, d):
+	t /= d/2
+	if t < 1:
+		return c/2*t*t + b
+	t-=1
+	return -c/2 * (t*(t-2) - 1) + b
+
+class LightMixer():
+    def __init__(self):
+        self.connected_rolling_mean_generator = MovingAverage(USER_TO_DEFAULT_FADE_WINDOW)
+        self.connected_mean = 0
+
+        self.userState = MuseState()
+
+        self.userColor = ColorState()
+        self.defaultColor = ColorState()
+        self.mixedColor = ColorState()
+
+        self.startDefaultColorAnimation()
+
+    def startDefaultColorAnimation(self):
+        self.defaultColorThread = StoppableThread(self.serveDefaultColorAnimation, )
+        self.defaultColorThread.start()
+
+    def serveDefaultColorAnimation(self, thread):
+        while not thread.stopped():
+            h,s,l = random.random(), 0.5 + random.random()/2.0, 0.4 + random.random()/5.0
+            r,g,b = [int(256*i) for i in colorsys.hls_to_rgb(h,l,s)]
+            self.defaultColor.r = r
+            self.defaultColor.g = g
+            self.defaultColor.b = b
+            time.sleep(DEFAULT_ANIMATION_RENDER_RATE)
+
+    # This mixes the use and default colours depending on if the user is connected or not
+    def updateMixedColor(self):
+        self.mixedColor.r = (self.userColor.r * self.connected_mean) + (self.defaultColor.r * (1-self.connected_mean))
+        self.mixedColor.g = (self.userColor.g * self.connected_mean) + (self.defaultColor.g * (1-self.connected_mean))
+        self.mixedColor.b = (self.userColor.b * self.connected_mean) + (self.defaultColor.b * (1-self.connected_mean))
+
+    # interprets user state as a color
+    def updateUserColor(self):
+        # Very simple linear mapping, not even of all eeg
+        # raw values are between -1 and 1. map it to 0-255
+        self.userColor.r = ((self.userState.delta + 1) / 2) * 255
+        self.userColor.g = ((self.userState.beta + 1) / 2) * 255
+        self.userColor.b = ((self.userState.alpha + 1) / 2) * 255
+
+    def updateState(self, user_state):
+        self.userState = user_state
+        self.connected_mean = self.connected_rolling_mean_generator.next(user_state.connected)
+        self.updateUserColor()
+
+    def getColor(self):
+        self.updateMixedColor()
+        return self.mixedColor
+
+    def kill(self):
+        self.defaultColorThread.stop()
+
+
+class DMXClient():
+    def __init__(self):
+        self.mixer = LightMixer()
+
+    def updateLights(self, new_user_state):
+
+        # print "DMX: %f, %f, %f, %f, %f" % (state.alpha, state.beta, state.delta, state.gamma, state.theta)
+        try:
+            self.mixer.updateState(new_user_state)
+            colorToSendToLights = self.mixer.getColor()
+            print "colorToSendToLights", colorToSendToLights.r, colorToSendToLights.g, colorToSendToLights.b
+        except Exception, err:
+            print str(err)
+            sys.exit()
+        # TODO This is the exit point. Call Eli's light api from here
+
+    def kill(self):
+        self.mixer.kill()
+
+class NodeLeafClient():
+    def __init__(self):
+        self.mixer = LightMixer()
+
+    def updateLights(self, new_user_state):
+        print "NodeLeaf: %f, %f, %f, %f, %f" % (state.alpha, state.beta, state.delta, state.gamma, state.theta)
+        colorToSendToLights = self.mixer.getColor()
+        # TODO
 
 class StoppableThread(threading.Thread):
     """Thread class with a stop() method. The thread itself has to check
@@ -53,118 +148,117 @@ class StoppableThread(threading.Thread):
 
     def __init__(self, target):
         super(StoppableThread, self).__init__(target=target, args=(self,))
+        self.target = target
         self._stop_event = threading.Event()
 
     def stop(self):
         self._stop_event.set()
 
     def stopped(self):
+        # print "stoppped?", self.target
         return self._stop_event.is_set()
+
+class ColorState:
+    def __init__(self):
+        self.r = 0
+        self.g = 0
+        self.b = 0
+
+class MuseState():
+    def __init__(self):
+        self.alpha = 0
+        self.beta = 0
+        self.delta = 0
+        self.gamma = 0
+        self.theta = 0
+        self.connected = False
 
 # MuseServer
 class MuseServer(ServerThread):
     #listen for messages on port 5000
     def __init__(self):
         ServerThread.__init__(self, 5001)
-        # Testing
-        self.relative_alpha_mean = MovingAverage(ROLLING_MEAN_WINDOW)
 
-        self.delta_relative_rolling_avg_generator = MovingAverage(ROLLING_MEAN_WINDOW)
-        self.theta_relative_rolling_avg_generator = MovingAverage(ROLLING_MEAN_WINDOW)
-        self.alpha_relative_rolling_avg_generator = MovingAverage(ROLLING_MEAN_WINDOW)
-        self.beta_relative_rolling_avg_generator = MovingAverage(ROLLING_MEAN_WINDOW)
-        self.gamma_relative_rolling_avg_generator = MovingAverage(ROLLING_MEAN_WINDOW)
-
-        self.delta = 0
-        self.theta = 0
-        self.alpha = 0
-        self.beta = 0
-        self.gamma = 0
+        self.alpha_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
+        self.beta_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
+        self.delta_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
+        self.gamma_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
+        self.theta_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
 
         self.all_contacts_mean = MovingAverage(CONTACT_LOS_TIMEOUT)
-        self.connected = False
+
+        self.state = MuseState()
 
         self.lightServerThread = None
         self.startServingLights()
 
     def kill(self):
-        self.lightServerThread.stop()
+        self.lightServerThreadDMX.stop()
+        self.lightServerThreadNanoLeaf.stop()
         self.debug = False
 
     def startServingLights(self):
-        self.lightServerThread = StoppableThread(self.serveLights)
-        # t = threading.Thread(target=self.serveLights)
-        self.lightServerThread.start()
+        self.lightServerThreadDMX = StoppableThread(self.serveDMXLights)
+        self.lightServerThreadNanoLeaf = StoppableThread(self.serveNanoLeafLights)
 
-    def serveLights(self, thread):
+        self.lightServerThreadDMX.start()
+        # self.lightServerThreadNanoLeaf.start()
+
+    def serveDMXLights(self, thread):
+        client = DMXClient()
         while not thread.stopped():
-            self.sendStateToDMX()
-            time.sleep(LIGHT_UPDATE_INTERVAL)
+            try:
+                client.updateLights(self.state)
+                time.sleep(LIGHT_UPDATE_INTERVAL)
+            except:
+                client.kill()
+        client.kill()
 
-    # use all of the self.x_relative_value values to mix a signal to the lights
-    def sendStateToDMX(self):
-        print "sending state: %f, %f, %f, %f, %f" % (
-            self.delta,
-            self.theta,
-            self.alpha,
-            self.beta,
-            self.gamma)
+    def serveNanoLeafLights(self, thread):
+        client = NodeLeafClient()
 
-
-    # receive alpha data
-    # @make_method('/muse/elements/alpha_absolute', 'ffff')
-    # def alpha_relative_callback(self, path, args):
-    #     alpha_w, alpha_x, alpha_y, alpha_z = args
-    #     print "%f, %f, %f, %f" % ( alpha_w, alpha_x, alpha_y, alpha_z)
-        # print "%f, %f, %f, %f" % ( alpha_w, alpha_z, avg(alpha_w, alpha_z), self.relative_alpha_mean.next(avg(alpha_w, alpha_z)))
-        # print "%s, %f, %f, %f, %f" % (path, alpha_w, alpha_x, alpha_y, alpha_z)
-        # print "%s, %f, %f" % (path, alpha_w, self.relative_alpha_mean.next(alpha_w))
-        # print h.heap
 
     # receive delta data
     @make_method('/muse/elements/delta_relative', 'ffff')
     def delta_relative_callback(self, path, args):
         input_w, input_x, input_y, input_z = args
-        self.delta = self.delta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        self.state.delta = self.delta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
     # receive theta data
     @make_method('/muse/elements/theta_relative', 'ffff')
     def theta_relative_callback(self, path, args):
         input_w, input_x, input_y, input_z = args
-        self.theta = self.theta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        self.state.theta = self.theta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
     # receive alpha data
     @make_method('/muse/elements/alpha_relative', 'ffff')
     def alpha_relative_callback(self, path, args):
         input_w, input_x, input_y, input_z = args
-        self.alpha = self.alpha_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        self.state.alpha = self.alpha_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
     # receive beta data
     @make_method('/muse/elements/beta_relative', 'ffff')
     def beta_relative_callback(self, path, args):
         input_w, input_x, input_y, input_z = args
-        self.beta = self.beta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        self.state.beta = self.beta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
     # receive gamma data
     @make_method('/muse/elements/gamma_relative', 'ffff')
     def gamma_relative_callback(self, path, args):
         input_w, input_x, input_y, input_z = args
-        self.gamma = self.gamma_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        self.state.gamma = self.gamma_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
 
 
     # is good is for whether or not a contact has signal from the brain
     @make_method('/muse/elements/is_good', 'iiii')
     def is_good_callback(self, path, args):
         chan_1, chan_2, chan_3, chan_4 = args
+        all_contacts = avg(chan_1, chan_2, chan_3, chan_4)
         # print "%s, %f, %f, %f, %f" % (path, chan_1, chan_2, chan_3, chan_4)
 
-        all_contacts = avg(chan_1, chan_2, chan_3, chan_4)
-
-        if self.all_contacts_mean.next(all_contacts) == 0 and self.connected:
+        if self.all_contacts_mean.next(all_contacts) == 0 and self.state.connected:
             # It has been at least CONTACT_LOS_TIMEOUT seconds of total LOS on all contacts
-            self.connected = False
-            # TODO trigger something to set default light animation
+            self.state.connected = 0
 
-        if all_contacts == 1 and not self.connected:
+        if all_contacts == 1 and not self.state.connected:
             # This is the first time the user has put the muse on in at least CONTACT_LOS_TIMEOUT second
-            self.connected = True
-            # TODO trigger the lights to sync with muse input
+            self.state.connected = 1
 
     #receive accelrometer data
     # @make_method('/muse/acc', 'fff')
