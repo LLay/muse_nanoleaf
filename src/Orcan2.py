@@ -11,12 +11,12 @@ class Orcan2:
 	BRIGHTNESS_DEFAULT = 125
 	STROBE_INTENSITY_DEFAULT = 0
 	MODE_DEFAULT = Mode.DMX_CONTROL
-	FUN_SPEED_DEFAULT = 0
+	FUNC_SPEED_DEFAULT = 0
 	RED_INTENSITY_DEFAULT = 255
 	GREEN_INTENSITY_DEFAULT = 255
 	BLUE_INTENSITY_DEFAULT = 255
 	
-	def __init__(self, brightness = BRIGHTNESS_DEFAULT, strobeIntensity = STROBE_INTENSITY_DEFAULT, functionMode=MODE_DEFAULT, functionSpeed = FUN_SPEED_DEFAULT, redIntensity = RED_INTENSITY_DEFAULT, greenIntensity = GREEN_INTENSITY_DEFAULT, blueIntensity = BLUE_INTENSITY_DEFAULT):
+	def __init__(self, brightness = BRIGHTNESS_DEFAULT, strobeIntensity = STROBE_INTENSITY_DEFAULT, functionMode=MODE_DEFAULT, functionSpeed = FUNC_SPEED_DEFAULT, redIntensity = RED_INTENSITY_DEFAULT, greenIntensity = GREEN_INTENSITY_DEFAULT, blueIntensity = BLUE_INTENSITY_DEFAULT):
 		self.brightness = brightness
 		self.strobeIntensity = strobeIntensity
 		self.functionMode = functionMode

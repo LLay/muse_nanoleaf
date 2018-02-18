@@ -4,7 +4,7 @@ import sys
 import time
 import random
 
-# from LightManager import Orcan2LightManager
+from LightManager import Orcan2LightManager
 from LightMixer import LightMixer
 from MovingAverage import MovingAverage
 from StoppableThread import StoppableThread
