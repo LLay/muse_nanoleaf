@@ -15,16 +15,16 @@ h = hpy()
 
 import urllib2
 
+# How often we update the lights. Measured in seconds. Minimum of 0.1 (You can go lower, but we only get data from the muse at 10Hz)
+LIGHT_UPDATE_INTERVAL = 0.1
+# How often when render an new frame of the default animation
+DEFAULT_ANIMATION_RENDER_RATE = 0.1
 # Number of second over which we average eeg signals.
 ROLLING_EEG_WINDOW = 3
 # Number of second over which fade between user input and the default light animation.
 USER_TO_DEFAULT_FADE_WINDOW = 5
 # The delay in seconds between loss of signal on all contacts and ..doing something about it
 CONTACT_LOS_TIMEOUT = 3
-# How often we update the lights. Measured in seconds. Minimum of 0.1 (You can go lower, but we only get data from the muse at 10Hz)
-LIGHT_UPDATE_INTERVAL = 0.2
-# How often when render an new frame of the default animation
-DEFAULT_ANIMATION_RENDER_RATE = 0.1
 
 # Correct decimal place for relevant values. Don't change me!
 ROLLING_EEG_WINDOW *= 10
