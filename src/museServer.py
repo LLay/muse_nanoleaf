@@ -5,6 +5,7 @@ import time
 import random
 
 from LightManager import Orcan2LightManager
+from Orcan2 import Orcan2
 from LightMixer import LightMixer
 from MovingAverage import MovingAverage
 from StoppableThread import StoppableThread
@@ -49,7 +50,7 @@ class DMXClient():
         pass
 
     def updateLightGroup(self, address, color):
-        self.lightManager.getLight(address).setRGB(int(color.r), int(color.g), int(color.b))
+        self.lightManager.getLightGroup(address).setRGB(int(color.r), int(color.g), int(color.b))
         pass
 
     def kill(self):
@@ -88,8 +89,8 @@ class MuseServer(ServerThread):
 
     def serveDMXLights(self, thread):
         dmxClient = DMXClient()
-        dmxClient.createLightGroup(EEG_LIGHT_GROUP_ADDRESS, "Orcan2")
-        dmxClient.createLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, "Orcan2")
+        dmxClient.createLightGroup(EEG_LIGHT_GROUP_ADDRESS, Orcan2)
+        dmxClient.createLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, Orcan2)
 
         # Start color mixing
         eegMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)

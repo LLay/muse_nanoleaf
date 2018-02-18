@@ -43,10 +43,11 @@ class LightMixer():
         self.spotlightThread.start()
 
     def serveDefaultSpotlightAnimation(self, thread):
-        timeToNextColor = 0
+        timeToNextBrightness = 0
         currentTime = 0
         self.defaultColor.r,self.defaultColor.g,self.defaultColor.b = 255,255,255 # Starting color. White
         self.defaultColor.brightness = 75
+        brightness = self.defaultColor.brightness
         while not thread.stopped():
             if currentTime == timeToNextBrightness:
                 brightness_old = brightness
