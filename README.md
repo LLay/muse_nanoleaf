@@ -4,7 +4,7 @@ A tool to visualize eeg waves captured by a Muse headband on a network of DMX li
 ### Dependencies
 - [museSDK](http://developer.choosemuse.com/sdk/ios) (which includes [museIO](http://developer.choosemuse.com/tools/museio))
 - [pyliblo](http://das.nasophon.de/pyliblo/)
-- [our fork of OLA](https://github.com/Etragas/ola)
+- [our fork of OLA](https://github.com/Etragas/ola) ⚠️ (Only for the brave of heart)
 - DMX Drivers 
 - python 2.7
 
