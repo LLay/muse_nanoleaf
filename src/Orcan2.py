@@ -1,22 +1,22 @@
 from enum import IntEnum
 
 class Mode(IntEnum):
-	MODE_DMX_CONTROL = 0
-	MODE_JUMP = 51
-	MODE_FADE = 101
-	MODE_PULSE = 151
-	MODE_SOUND = 201
+	DMX_CONTROL = 0
+	JUMP = 51
+	FADE = 101
+	PULSE = 151
+	SOUND = 225
 
 class Orcan2:
 	BRIGHTNESS_DEFAULT = 125
 	STROBE_INTENSITY_DEFAULT = 0
-	MODE_DEFAULT = Mode.MODE_DMX_CONTROL
-	FUN_SPEED_DEFAULT = 0
+	MODE_DEFAULT = Mode.DMX_CONTROL
+	FUNC_SPEED_DEFAULT = 0
 	RED_INTENSITY_DEFAULT = 255
 	GREEN_INTENSITY_DEFAULT = 255
 	BLUE_INTENSITY_DEFAULT = 255
 	
-	def __init__(self, brightness = BRIGHTNESS_DEFAULT, strobeIntensity = STROBE_INTENSITY_DEFAULT, functionMode=MODE_DEFAULT, functionSpeed = FUN_SPEED_DEFAULT, redIntensity = RED_INTENSITY_DEFAULT, greenIntensity = GREEN_INTENSITY_DEFAULT, blueIntensity = BLUE_INTENSITY_DEFAULT):
+	def __init__(self, brightness = BRIGHTNESS_DEFAULT, strobeIntensity = STROBE_INTENSITY_DEFAULT, functionMode=MODE_DEFAULT, functionSpeed = FUNC_SPEED_DEFAULT, redIntensity = RED_INTENSITY_DEFAULT, greenIntensity = GREEN_INTENSITY_DEFAULT, blueIntensity = BLUE_INTENSITY_DEFAULT):
 		self.brightness = brightness
 		self.strobeIntensity = strobeIntensity
 		self.functionMode = functionMode
@@ -61,12 +61,12 @@ class Orcan2:
 	def setMode(self, mode):
 		if not isinstance(mode,Mode):
 			raise TypeError("Please use the Mode Enum")
-		self.mode = mode
+		self.functionMode = mode
 
 	def setStrobeIntensity(self, strobeIntensity):
-		checkRange(strobeIntensity)
+		self.checkRange(strobeIntensity)
 		self.strobeIntensity = strobeIntensity
 
 	def setFunctionSpeed(self, speed):
-		checkRange(speed)
+		self.checkRange(speed)
 		self.functionSpeed = speed
