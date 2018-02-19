@@ -149,12 +149,27 @@ class EEGWaveLightMixer(LightMixer):
         r,g,b = 0,0,0 # Starting color. Black
         self.defaultLight.brightness = self.default_animation_brightness
         oneTimeFadeIn = 0
+        minRGBSum = 255
+        MaxRGBSum = 510
         while not thread.stopped():
             if currentTime == timeToNextColor:
                 r_old,g_old,b_old = r,g,b
                 # https://stackoverflow.com/questions/43437309/get-a-bright-random-colour-python
-                h,s,l = random.random(), 0.5 + random.random()/2.0, 0.4 + random.random()/5.0
-                r,g,b = [int(256*i) for i in colorsys.hls_to_rgb(h,l,s)]
+                #Idea, all colours are 255 of a primary colour + some combo of 255 for the other two
+                colourArray = [0]*3
+                primaryIndex = random.randint(0, 2)
+                colourArray[primaryIndex] = 255
+                mixingColour = 255
+                remainingIdx = list(set(list(range(len(colourArray)))) - set([primaryIndex]))
+                for idx in remainingIdx:
+                    if idx == remainingIdx[-1]:
+                        #Last idx to fill
+                        colourArray[idx] = mixingColour
+                    colourToAdd = random.randint(0, mixingColour)
+                    mixingColour -= colourToAdd
+                    colourArray[idx] = colourToAdd
+                print("Colour array {}".format(colourArray))
+                r, g, b = colourArray
                 timeToNextColor = random.randint(4/self.default_animation_render_rate,6/self.default_animation_render_rate)
                 currentTime = 0
 
