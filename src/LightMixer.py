@@ -147,7 +147,6 @@ class EEGWaveLightMixer(LightMixer):
         timeToNextColor = 0
         currentTime = 0
         r,g,b = 0,0,0 # Starting color. Black
-
         self.defaultLight.brightness = self.default_animation_brightness
         oneTimeFadeIn = 0
         while not thread.stopped():
