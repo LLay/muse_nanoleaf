@@ -4,8 +4,8 @@ from StoppableThread import StoppableThread
 import array
 import sys
 
-class Orcan2LightManager:
 
+class Orcan2LightManager:
     def DmxSent(self, state):
       if not state.Succeeded() or self.thread.stopped():
         self.clientWrapper.Stop()
@@ -15,6 +15,7 @@ class Orcan2LightManager:
     TICK_INTERVAL_DEFAULT = 10  # in ms
     LIGHT_ADDRESS = 0
     LIGHT_INSTANCE = 1
+    NUM_BYTES_PER_LIGHT = 8
 
     def __init__(self, clientWrapper = ClientWrapper(), lightAddress = None, light = None, universe = UNIVERSE_DEFAULT, tickInterval = TICK_INTERVAL_DEFAULT):
         self.clientWrapper = clientWrapper
@@ -42,7 +43,8 @@ class Orcan2LightManager:
     def getLightStatesAsArrays(self):
         #TODO Think about optimization here
         orderedLightGroups = self.getLightGroupsOrderedByAddress()
-        lightArray = [0]*512
+        arraySize = orderedLightGroups[-1][Orcan2LightManager.LIGHT_ADDRESS] + Orcan2LightManager.NUM_BYTES_PER_LIGHT
+        lightArray = [0]*arraySize
         for address,  lightGroup in orderedLightGroups:
             lightGroupState = lightGroup.getStateAsArray()
             for offset in range(len(lightGroupState)):
