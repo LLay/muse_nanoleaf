@@ -11,3 +11,5 @@ class MuseState(object):
         self.touching_forehead = 0
         # 'connected' is a computed value. see horseshoe_callback() for implementation
         self.connected = 0
+        # The current level of connectivity 0-1
+        self.connectionScore = 0

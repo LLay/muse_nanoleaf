@@ -42,7 +42,7 @@ EEG_LIGHT_GROUP_ADDRESS= 1
 SPOTLIGHT_LIGHT_GROUP_ADDRESS = 8
 
 # How often to print the log message in seconds
-LOG_PRINT_RATE = 1
+LOG_PRINT_RATE = 0.01
 
 # Correct decimal place for relevant values. XXX Don't change me!
 ROLLING_EEG_WINDOW *= 10
@@ -95,6 +95,11 @@ class MuseServer(ServerThread):
 
         # EEG signals, connected, touching_forehead
         self.state = MuseState()
+        self.state.alpha = .32
+        self.state.beta = .32
+        self.state.delta = .32
+        self.state.gamma = .32
+        self.state.theta = .32
 
         self.connections_debug = (0, 0, 0, 0)
 
@@ -104,14 +109,14 @@ class MuseServer(ServerThread):
         # self.connectThread = StoppableThread(self.connectToggle)
         # self.connectThread.start()
 
-    def connectToggle(self, thread):
-        self.state.connected = 1
-        self.state.touching_forehead = 1
-        while not thread.stopped():
-            self.state.connected = abs(1-self.state.connected)
-            self.state.touching_forehead = abs(1-self.state.touching_forehead)
-            print "set connected and touching_forehead to:", self.state.connected, self.state.touching_forehead
-            time.sleep(10)
+    # def connectToggle(self, thread):
+    #     self.state.connected = 0
+    #     self.state.touching_forehead = 0
+    #     while not thread.stopped():
+    #         self.state.connected = abs(1-self.state.connected)
+    #         self.state.touching_forehead = abs(1-self.state.touching_forehead)
+    #         print "--- set connected and touching_forehead to:", self.state.connected, self.state.touching_forehead
+    #         time.sleep(5)
 
     def kill(self):
         self.lightServerThreadDMX.stop()
@@ -223,8 +228,7 @@ class MuseServer(ServerThread):
     def horseshoe_callback(self, path, args):
         # A score between 0 and 1 of how good the connections of the contacts are
         connectionScore = (8 - (sum(map(lambda x: x if x <= 3 else 3, args)) - 4)) / 8.0
-        # logging
-        self.connections_debug = args
+        self.state.connectionScore = connectionScore
 
         if self.all_contacts_mean.next(connectionScore) == 0 and self.state.connected:
             # It has been at least CONTACT_LOS_TIMEOUT seconds of total LOS on all contacts
@@ -236,6 +240,8 @@ class MuseServer(ServerThread):
             print "CONNECTED!!"
             self.state.connected = 1
 
+        # logging
+        self.connections_debug = args
     #receive accelrometer data
     # @make_method('/muse/acc', 'fff')
     # def acc_callback(self, path, args):

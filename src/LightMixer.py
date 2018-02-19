@@ -62,15 +62,18 @@ class SpotlightLightMixer(LightMixer):
         self.defaultAnimationThread.start()
 
     def serveDefaultAnimation(self, thread):
-        #settings
+        # Undulation bounds
         brightness_lower_bound = self.default_animation_brightness - (self.default_animation_brightness_range / 2)
+        brightness_lower_bound = max(0, brightness_lower_bound)
+
         brightness_upper_bound = self.default_animation_brightness + (self.default_animation_brightness_range / 2)
+        brightness_upper_bound = min(255, brightness_upper_bound)
 
         # initialize animation values
         timeToNextBrightness = 0
         currentTime = 0
         self.defaultLight.r,self.defaultLight.g,self.defaultLight.b = 255,255,255 # Starting color. White
-        brightness = brightness_lower_bound
+        brightness = 0
         while not thread.stopped():
             if currentTime == timeToNextBrightness:
                 brightness_old = brightness
@@ -78,7 +81,8 @@ class SpotlightLightMixer(LightMixer):
                 timeToNextBrightness = random.randint(6/self.default_animation_render_rate,8/self.default_animation_render_rate)
                 currentTime = 0
 
-            self.defaultLight.brightness = ease(pytweening.easeInOutQuad, brightness_old, brightness, currentTime, timeToNextBrightness)
+            undulatingBrightness = ease(pytweening.easeInOutQuad, brightness_old, brightness, currentTime, timeToNextBrightness)
+            self.defaultLight.brightness = undulatingBrightness * (1-self.userState.connectionScore)
 
             currentTime += 1
             time.sleep(self.default_animation_render_rate)
@@ -91,7 +95,6 @@ class SpotlightLightMixer(LightMixer):
         self.mixedLight.b = int((self.userLight.b * self.connected_mean) + (self.defaultLight.b * (1-self.connected_mean)))
         self.mixedLight.brightness = int((self.userLight.brightness * self.connected_mean) + (self.defaultLight.brightness * (1-self.connected_mean)))
 
-    # This function can be asynced if need be
     def updateState(self, user_state):
         self.userState = user_state
         self.connected_mean = self.connected_rolling_mean_generator.next(user_state.connected)
@@ -123,6 +126,7 @@ class EEGWaveLightMixer(LightMixer):
         self.connected_rolling_mean_generator = MovingAverage(user_to_default_fade_window)
         self.touching_forehead_mean_generator = MovingAverage(user_to_default_fade_window)
 
+        # Muse data, and user info
         self.userState = MuseState()
 
         # The data that represents the muse data
@@ -162,8 +166,9 @@ class EEGWaveLightMixer(LightMixer):
             # Dim the animation when the user puts on the muse
             # Dim to a minimum of 20% of the original animation brightness
             # TODO
-            # brightnessModifier = 1-self.touching_forehead_mean if 1-self.touching_forehead_mean >= 0.2 else 0.2
-            # self.defaultLight.brightness = self.default_animation_brightness * (1-self.touching_forehead_mean)
+            brightnessModifier = 1-self.touching_forehead_mean
+            brightnessModifier = max(0.2, brightnessModifier)
+            self.defaultLight.brightness = self.default_animation_brightness * (1-self.touching_forehead_mean)
 
             currentTime += 1
             time.sleep(self.default_animation_render_rate)
