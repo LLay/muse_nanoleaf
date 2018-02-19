@@ -190,7 +190,7 @@ class MuseServer(ServerThread):
         self.state.alpha = x if not math.isnan(x) else 0
 
     def weighter(self, values, weights, normalizationMin = 0, normalizationMax = 1):
-        avgVal = np.average(np.multiply(values,weights))
+        avgVal = np.nanmean(np.multiply(values,weights))
         normalizedAvgVal = (avgVal - normalizationMin) / (normalizationMax - normalizationMin)
         return normalizedAvgVal
 
