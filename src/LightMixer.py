@@ -30,11 +30,14 @@ class LightMixer():
         raise NotImplementedError('Need to implement kill')
 
 class SpotlightLightMixer(LightMixer):
-    def __init__(self, user_to_default_fade_window, default_animation_render_rate, default_animation_brightness, user_light_brightness, default_animation_brightness_range):
+    def __init__(self,
+        user_to_default_fade_window,
+        default_animation_render_rate,
+        default_animation_brightness,
+        default_animation_brightness_range):
         self.default_animation_render_rate = default_animation_render_rate
         self.default_animation_brightness = default_animation_brightness
         self.default_animation_brightness_range = default_animation_brightness_range
-        self.user_light_brightness = user_light_brightness
 
         # These values help use keep track of when the user is connected to the muse
         self.connected_mean = 0
@@ -50,7 +53,7 @@ class SpotlightLightMixer(LightMixer):
         self.defaultLight = LightState()
         # The weighted mix of the user and default animation color.
         # When the user connects (to the muse) this color will transition
-        # over 3 seconds to be their color, whe the user disconnects, this color
+        # over 3 seconds to be their color, when the user disconnects, this color
         # transitions to the default animation color
         self.mixedLight = LightState()
 
@@ -105,8 +108,14 @@ class SpotlightLightMixer(LightMixer):
 
 
 class EEGWaveLightMixer(LightMixer):
-    def __init__(self, user_to_default_fade_window, default_animation_render_rate):
+    def __init__(self,
+        user_to_default_fade_window,
+        default_animation_render_rate,
+        default_animation_brightness,
+        user_light_brightness):
         self.default_animation_render_rate = default_animation_render_rate
+        self.default_animation_brightness = default_animation_brightness
+        self.user_light_brightness = user_light_brightness
 
         # These values help use keep track of when the user is connected to the muse
         self.connected_mean = 0
@@ -152,8 +161,9 @@ class EEGWaveLightMixer(LightMixer):
 
             # Dim the animation when the user puts on the muse
             # Dim to a minimum of 20% of the original animation brightness
-            brightnessModifier = 1-self.touching_forehead_mean if 1-self.touching_forehead_mean >= 0.2 else 0.2
-            self.defaultLight.brightness = DEFAULT_COLOR_ANIMATION_BRIGHTNESS * (1-self.touching_forehead_mean)
+            # TODO
+            # brightnessModifier = 1-self.touching_forehead_mean if 1-self.touching_forehead_mean >= 0.2 else 0.2
+            # self.defaultLight.brightness = self.default_animation_brightness * (1-self.touching_forehead_mean)
 
             currentTime += 1
             time.sleep(self.default_animation_render_rate)

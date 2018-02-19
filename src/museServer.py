@@ -33,9 +33,9 @@ CONTACT_LOS_TIMEOUT = 3
 # the default brightness of the lights when the user is connected
 USER_LIGHT_BRIGHTNESS = 125
 # the default brightness of the Default animation
-DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 255
+DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 125
 DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS = 125
-DEFAULT_ANIMATION_BRIGHTNESS_RANGE = 50
+DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS_RANGE = 50
 
 # Light group addresses
 EEG_LIGHT_GROUP_ADDRESS= 1
@@ -101,8 +101,21 @@ class MuseServer(ServerThread):
         self.lightServerThread = None
         self.startServingLights()
 
+        # self.connectThread = StoppableThread(self.connectToggle)
+        # self.connectThread.start()
+
+    def connectToggle(self, thread):
+        self.state.connected = 1
+        self.state.touching_forehead = 1
+        while not thread.stopped():
+            self.state.connected = abs(1-self.state.connected)
+            self.state.touching_forehead = abs(1-self.state.touching_forehead)
+            print "set connected and touching_forehead to:", self.state.connected, self.state.touching_forehead
+            time.sleep(10)
+
     def kill(self):
         self.lightServerThreadDMX.stop()
+        # self.connectThread.stop()
 
     def startServingLights(self):
         self.lightServerThreadDMX = StoppableThread(self.serveDMXLights)
@@ -117,13 +130,12 @@ class MuseServer(ServerThread):
             user_to_default_fade_window=USER_TO_DEFAULT_FADE_WINDOW,
             default_animation_render_rate=DEFAULT_ANIMATION_RENDER_RATE,
             default_animation_brightness=DEFAULT_COLOR_ANIMATION_BRIGHTNESS,
-            user_color_brightness=USER_COLOR_BRIGHTNESS)
+            user_light_brightness=USER_LIGHT_BRIGHTNESS)
         spotlightMixer = SpotlightLightMixer(
             user_to_default_fade_window=USER_TO_DEFAULT_FADE_WINDOW,
             default_animation_render_rate=DEFAULT_ANIMATION_RENDER_RATE,
             default_animation_brightness=DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS,
-            default_animation_brightness_range=DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS_RANGE,
-            user_color_brightness=USER_COLOR_BRIGHTNESS
+            default_animation_brightness_range=DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS_RANGE
             )
         # Start color mixing
         eegMixer.startDefaultAnimation()
@@ -132,6 +144,7 @@ class MuseServer(ServerThread):
         count = LOG_PRINT_RATE / LIGHT_UPDATE_INTERVAL
         while not thread.stopped():
             try:
+                # print "Updating state: ALPHA: %f, BETA: %f, DELTA: %f, GAMMA: %f, THETA: %f" % (self.state.alpha, self.state.beta, self.state.delta, self.state.gamma, self.state.theta)
                 eegMixer.updateState(self.state)
                 spotlightMixer.updateState(self.state)
 
@@ -142,6 +155,7 @@ class MuseServer(ServerThread):
                 if count >= LOG_PRINT_RATE / LIGHT_UPDATE_INTERVAL:
                     e = eegLight
                     s = spotlightLight
+                    print ""
                     print "User conectivity: %d raw: %s" % (self.state.connected, str(self.connections_debug))
                     print "Muse data: ALPHA: %f, BETA: %f, DELTA: %f, GAMMA: %f, THETA: %f" % (self.state.alpha, self.state.beta, self.state.delta, self.state.gamma, self.state.theta)
                     print "Muse lights (from Mixer), ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (EEG_LIGHT_GROUP_ADDRESS, e.r, e.g, e.b, e.brightness)
