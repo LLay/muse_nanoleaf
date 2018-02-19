@@ -10,7 +10,7 @@ from StoppableThread import StoppableThread
 
 DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 255 # Brightness
 
-class ColorState:
+class LightState:
     def __init__(self):
         self.r = 0
         self.g = 0
@@ -35,20 +35,20 @@ class LightMixer():
 
         self.userState = MuseState()
 
-        # The color that represents the muse data
-        self.userColor = ColorState()
+        # The data that represents the muse data
+        self.userLight = LightState()
         # The current colour of the default animation
-        self.defaultColor = ColorState()
+        self.defaultLight = LightState()
         # The weighted mix of the user and default animation color.
         # When the user connects (to the muse) this color will transition
         # over 3 seconds to be their color, whe the user disconnects, this color
         # transitions to the default animation color
-        self.mixedColor = ColorState()
+        self.mixedLight = LightState()
 
 
-    def startDefaultColorAnimation(self):
-        self.defaultColorThread = StoppableThread(self.serveDefaultColorAnimation, )
-        self.defaultColorThread.start()
+    def startDefaultLightAnimation(self):
+        self.defaultLightThread = StoppableThread(self.serveDefaultColorAnimation, )
+        self.defaultLightThread.start()
 
     def startDefaultSpotlightAnimation(self):
         self.spotlightThread = StoppableThread(self.serveDefaultSpotlightAnimation, )
@@ -62,7 +62,7 @@ class LightMixer():
         # initialize animation values
         timeToNextBrightness = 0
         currentTime = 0
-        self.defaultColor.r,self.defaultColor.g,self.defaultColor.b = 255,255,255 # Starting color. White
+        self.defaultLight.r,self.defaultLight.g,self.defaultLight.b = 255,255,255 # Starting color. White
         brightness = brightness_lower_bound
         while not thread.stopped():
             if currentTime == timeToNextBrightness:
@@ -71,7 +71,7 @@ class LightMixer():
                 timeToNextBrightness = random.randint(6/self.default_animation_render_rate,8/self.default_animation_render_rate)
                 currentTime = 0
 
-            self.defaultColor.brightness = ease(pytweening.easeInOutQuad, brightness_old, brightness, currentTime, timeToNextBrightness)
+            self.defaultLight.brightness = ease(pytweening.easeInOutQuad, brightness_old, brightness, currentTime, timeToNextBrightness)
 
             currentTime += 1
             time.sleep(self.default_animation_render_rate)
@@ -83,7 +83,7 @@ class LightMixer():
         r,g,b = 0,0,0 # Starting color
 
         # TODO move to Env var
-        self.defaultColor.brightness = DEFAULT_COLOR_ANIMATION_BRIGHTNESS
+        self.defaultLight.brightness = DEFAULT_COLOR_ANIMATION_BRIGHTNESS
 
         while not thread.stopped():
             if currentTime == timeToNextColor:
@@ -94,35 +94,35 @@ class LightMixer():
                 timeToNextColor = random.randint(4/self.default_animation_render_rate,6/self.default_animation_render_rate)
                 currentTime = 0
 
-            self.defaultColor.r = ease(pytweening.easeInOutQuad, r_old, r, currentTime, timeToNextColor)
-            self.defaultColor.g = ease(pytweening.easeInOutQuad, g_old, g, currentTime, timeToNextColor)
-            self.defaultColor.b = ease(pytweening.easeInOutQuad, b_old, b, currentTime, timeToNextColor)
+            self.defaultLight.r = ease(pytweening.easeInOutQuad, r_old, r, currentTime, timeToNextColor)
+            self.defaultLight.g = ease(pytweening.easeInOutQuad, g_old, g, currentTime, timeToNextColor)
+            self.defaultLight.b = ease(pytweening.easeInOutQuad, b_old, b, currentTime, timeToNextColor)
 
             # Dim the animation when the user puts on the muse
             # Dim to a minimum of 20% of the original animation brightness
             brightnessModifier = 1-self.touching_forehead_mean if 1-self.touching_forehead_mean >= 0.2 else 0.2
-            self.defaultColor.brightness = DEFAULT_COLOR_ANIMATION_BRIGHTNESS * (1-self.touching_forehead_mean)
+            self.defaultLight.brightness = DEFAULT_COLOR_ANIMATION_BRIGHTNESS * (1-self.touching_forehead_mean)
 
             currentTime += 1
             time.sleep(self.default_animation_render_rate)
         sys.exit()
 
     # This mixes the use and default colours depending on if the user is connected or not
-    def updateMixedColor(self):
-        self.mixedColor.r = int((self.userColor.r * self.connected_mean) + (self.defaultColor.r * (1-self.connected_mean)))
-        self.mixedColor.g = int((self.userColor.g * self.connected_mean) + (self.defaultColor.g * (1-self.connected_mean)))
-        self.mixedColor.b = int((self.userColor.b * self.connected_mean) + (self.defaultColor.b * (1-self.connected_mean)))
-        self.mixedColor.brightness = int((self.userColor.brightness * self.connected_mean) + (self.defaultColor.brightness * (1-self.connected_mean)))
+    def updateMixedLight(self):
+        self.mixedLight.r = int((self.userLight.r * self.connected_mean) + (self.defaultLight.r * (1-self.connected_mean)))
+        self.mixedLight.g = int((self.userLight.g * self.connected_mean) + (self.defaultLight.g * (1-self.connected_mean)))
+        self.mixedLight.b = int((self.userLight.b * self.connected_mean) + (self.defaultLight.b * (1-self.connected_mean)))
+        self.mixedLight.brightness = int((self.userLight.brightness * self.connected_mean) + (self.defaultLight.brightness * (1-self.connected_mean)))
 
     # interprets user state as a color
     def updateUserColorEEG(self):
         # Very simple linear mapping, not even of all eeg
         # raw values are between -1 and 1. map it to 0-255
         #
-        self.userColor.r = ((self.userState.delta + 1) / 2.0) * 255
-        self.userColor.g = ((self.userState.beta + 1) / 2.0) * 255
-        self.userColor.b = ((self.userState.alpha + 1) / 2.0) * 255
-        self.userColor.brightness = 125
+        self.userLight.r = ((self.userState.delta + 1) / 2.0) * 255
+        self.userLight.g = ((self.userState.beta + 1) / 2.0) * 255
+        self.userLight.b = ((self.userState.alpha + 1) / 2.0) * 255
+        self.userLight.brightness = 125
 
     # This function can be asynced if need be
     def updateStateForEEG(self, user_state):
@@ -130,21 +130,21 @@ class LightMixer():
         self.connected_mean = self.connected_rolling_mean_generator.next(user_state.connected)
         self.touching_forehead_mean = self.touching_forehead_mean_generator.next(user_state.touching_forehead)
         self.updateUserColorEEG()
-        self.updateMixedColor()
+        self.updateMixedLight()
 
     # This function can be asynced if need be
     def updateStateForSpotlight(self, user_state):
         self.userState = user_state
         self.connected_mean = self.connected_rolling_mean_generator.next(user_state.connected)
-        self.updateMixedColor()
+        self.updateMixedLight()
         # Note that we leave the user colors as black,
         # to fade the spotlight off when a user is connected
 
-    def getColor(self):
-        return self.mixedColor
+    def getLight(self):
+        return self.mixedLight
 
     def kill(self):
-        if hasattr(self, 'defaultColorThread'):
-            self.defaultColorThread.stop()
+        if hasattr(self, 'defaultLightThread'):
+            self.defaultLighthread.stop()
         if hasattr(self, 'spotlightThread'):
             self.spotlightThread.stop()

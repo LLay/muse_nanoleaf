@@ -112,7 +112,7 @@ class MuseServer(ServerThread):
         eegMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
         spotlightMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
         # Start color mixing
-        eegMixer.startDefaultColorAnimation()
+        eegMixer.startDefaultLightAnimation()
         spotlightMixer.startDefaultSpotlightAnimation()
 
         count = LOG_PRINT_RATE / LIGHT_UPDATE_INTERVAL
@@ -121,21 +121,21 @@ class MuseServer(ServerThread):
                 eegMixer.updateStateForEEG(self.state)
                 spotlightMixer.updateStateForSpotlight(self.state)
 
-                eegColor = eegMixer.getColor()
-                spotlightColor = spotlightMixer.getColor()
+                eegLight = eegMixer.getLight()
+                spotlightLight = spotlightMixer.getLight()
 
                 # Logging
                 if count >= LOG_PRINT_RATE / LIGHT_UPDATE_INTERVAL:
-                    e = eegColor
-                    s = spotlightColor
+                    e = eegLight
+                    s = spotlightLight
                     print "User conectivity: %d raw: %s" % (self.state.connected, str(self.connections_debug))
                     print "Muse data: ALPHA: %f, BETA: %f, DELTA: %f, GAMMA: %f, THETA: %f" % (self.state.alpha, self.state.beta, self.state.delta, self.state.gamma, self.state.theta)
                     print "Muse lights (from Mixer), ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (EEG_LIGHT_GROUP_ADDRESS, e.r, e.g, e.b, e.brightness)
                     print "Spotlight (from Mixer),   ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (SPOTLIGHT_LIGHT_GROUP_ADDRESS, s.r, s.g, s.b, s.brightness)
                     count = 0
 
-                dmxClient.updateLightGroup(EEG_LIGHT_GROUP_ADDRESS, eegColor)
-                dmxClient.updateLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, spotlightColor)
+                dmxClient.updateLightGroup(EEG_LIGHT_GROUP_ADDRESS, eegLight)
+                dmxClient.updateLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, spotlightLight)
 
                 count += 1
                 time.sleep(LIGHT_UPDATE_INTERVAL)
