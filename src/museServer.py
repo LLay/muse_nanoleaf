@@ -7,7 +7,7 @@ import traceback
 import math
 
 from threading import Thread
-from LightManager import Orcan2LightManager
+from LightManager import DMXLightManager
 from Orcan2 import Orcan2
 from PTVWIRE import PTVWIRE
 from LightMixer import EEGWaveLightMixer, SpotlightLightMixer
@@ -50,7 +50,7 @@ def avg(*values):
 
 class DMXClient():
     def __init__(self):
-        self.lightManager = Orcan2LightManager(tickInterval=10)
+        self.lightManager = DMXLightManager(tickInterval=10)
         thread = StoppableThread(target = self.lightManager.run)
         thread.start()
 

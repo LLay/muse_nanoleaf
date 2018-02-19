@@ -5,7 +5,7 @@ import array
 import sys
 
 
-class Orcan2LightManager:
+class DMXLightManager:
     def DmxSent(self, state):
       if not state.Succeeded() or self.thread.stopped():
         self.clientWrapper.Stop()
@@ -43,7 +43,7 @@ class Orcan2LightManager:
     def getLightStatesAsArrays(self):
         #TODO Think about optimization here
         orderedLightGroups = self.getLightGroupsOrderedByAddress()
-        arraySize = orderedLightGroups[-1][Orcan2LightManager.LIGHT_ADDRESS] + Orcan2LightManager.NUM_BYTES_PER_LIGHT
+        arraySize = orderedLightGroups[-1][DMXLightManager.LIGHT_ADDRESS] + DMXLightManager.NUM_BYTES_PER_LIGHT
         lightArray = [0]*arraySize
         for address,  lightGroup in orderedLightGroups:
             lightGroupState = lightGroup.getStateAsArray()

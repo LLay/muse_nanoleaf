@@ -168,11 +168,11 @@ class EEGWaveLightMixer(LightMixer):
 
     # interprets user state as a color
     def updateUserColorEEG(self):
-        # Very simple linear mapping, not even of all eeg
+        # raw values are between 0 and 1. map it to 0-255
         self.userColor.r = (self.userState.delta) * 255
         self.userColor.g = (self.userState.beta) * 255
         self.userColor.b = (self.userState.alpha) * 255
-        self.userLight.brightness = 125
+        self.userColor.brightness = 125
 
     # This function can be asynced if need be
     def updateState(self, user_state):
