@@ -197,7 +197,7 @@ class MuseServer(ServerThread):
     # receive beta data
     @make_method('/muse/elements/beta_relative', 'ffff')
     def beta_relative_callback(self, path, *args):
-        weights = np.array([0, 2, 0, 2])
+        weights = np.array([0, 2, 2, 0])
         values = args[0]
         betaWeightedAndNormalized = self.weighter(values, weights, normalizationMin=.15, normalizationMax=.7)
         x = self.beta_relative_rolling_avg_generator.next(betaWeightedAndNormalized)
