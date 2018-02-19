@@ -3,9 +3,10 @@ from liblo import *
 import sys
 import time
 import random
-
+from threading import Thread
 from LightManager import Orcan2LightManager
 from Orcan2 import Orcan2
+from PTVWIRE import PTVWIRE
 from LightMixer import LightMixer
 from MovingAverage import MovingAverage
 from StoppableThread import StoppableThread
@@ -90,7 +91,7 @@ class MuseServer(ServerThread):
     def serveDMXLights(self, thread):
         dmxClient = DMXClient()
         dmxClient.createLightGroup(EEG_LIGHT_GROUP_ADDRESS, Orcan2)
-        dmxClient.createLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, Orcan2)
+        dmxClient.createLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, PTVWIRE)
 
         # Start color mixing
         eegMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
@@ -115,10 +116,11 @@ class MuseServer(ServerThread):
 
             except Exception, err:
                 print "Exception in serveDMXLights: ", err
+                dmxClient.kill()
                 eegMixer.kill()
                 spotlightMixer.kill()
                 sys.exit()
-
+        dmxClient.kill()
         eegMixer.kill()
         spotlightMixer.kill()
         sys.exit()
