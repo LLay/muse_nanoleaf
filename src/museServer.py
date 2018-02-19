@@ -42,7 +42,7 @@ EEG_LIGHT_GROUP_ADDRESS= 1
 SPOTLIGHT_LIGHT_GROUP_ADDRESS = 8
 
 # How often to print the log message in seconds
-LOG_PRINT_RATE = 0.01
+LOG_PRINT_RATE = 1
 
 # Correct decimal place for relevant values. XXX Don't change me!
 ROLLING_EEG_WINDOW *= 10

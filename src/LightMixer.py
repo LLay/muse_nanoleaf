@@ -73,7 +73,7 @@ class SpotlightLightMixer(LightMixer):
         timeToNextBrightness = 0
         currentTime = 0
         self.defaultLight.r,self.defaultLight.g,self.defaultLight.b = 255,255,255 # Starting color. White
-        brightness = 0
+        brightness = 0 # Fade in the spotlight on saerver start
         while not thread.stopped():
             if currentTime == timeToNextBrightness:
                 brightness_old = brightness
@@ -149,7 +149,7 @@ class EEGWaveLightMixer(LightMixer):
         r,g,b = 0,0,0 # Starting color. Black
 
         self.defaultLight.brightness = self.default_animation_brightness
-
+        oneTimeFadeIn = 0
         while not thread.stopped():
             if currentTime == timeToNextColor:
                 r_old,g_old,b_old = r,g,b
@@ -163,13 +163,12 @@ class EEGWaveLightMixer(LightMixer):
             self.defaultLight.g = ease(pytweening.easeInOutQuad, g_old, g, currentTime, timeToNextColor)
             self.defaultLight.b = ease(pytweening.easeInOutQuad, b_old, b, currentTime, timeToNextColor)
 
-            # Dim the animation when the user puts on the muse
-            # Dim to a minimum of 20% of the original animation brightness
-            # TODO
-            brightnessModifier = 1-self.touching_forehead_mean
-            brightnessModifier = max(0.2, brightnessModifier)
-            self.defaultLight.brightness = self.default_animation_brightness * (1-self.touching_forehead_mean)
+            # Fade in the lights when we start the server
+            if oneTimeFadeIn <= 1:
+                # Fade lights in over 2 second
+                oneTimeFadeIn += 0.5 * self.default_animation_render_rate
 
+            self.defaultLight.brightness = self.default_animation_brightness * oneTimeFadeIn
             currentTime += 1
             time.sleep(self.default_animation_render_rate)
         sys.exit()
