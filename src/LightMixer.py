@@ -8,8 +8,6 @@ from HelperClasses import MuseState
 from MovingAverage import MovingAverage
 from StoppableThread import StoppableThread
 
-DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 255
-
 class LightState:
     def __init__(self):
         self.r = 0
@@ -32,8 +30,11 @@ class LightMixer():
         raise NotImplementedError('Need to implement kill')
 
 class SpotlightLightMixer(LightMixer):
-    def __init__(self, user_to_default_fade_window, default_animation_render_rate):
+    def __init__(self, user_to_default_fade_window, default_animation_render_rate, default_animation_brightness, user_light_brightness, default_animation_brightness_range):
         self.default_animation_render_rate = default_animation_render_rate
+        self.default_animation_brightness = default_animation_brightness
+        self.default_animation_brightness_range = default_animation_brightness_range
+        self.user_light_brightness = user_light_brightness
 
         # These values help use keep track of when the user is connected to the muse
         self.connected_mean = 0
@@ -59,8 +60,8 @@ class SpotlightLightMixer(LightMixer):
 
     def serveDefaultAnimation(self, thread):
         #settings
-        brightness_lower_bound = 100
-        brightness_upper_bound = 200
+        brightness_lower_bound = self.default_animation_brightness - (self.default_animation_brightness_range / 2)
+        brightness_upper_bound = self.default_animation_brightness + (self.default_animation_brightness_range / 2)
 
         # initialize animation values
         timeToNextBrightness = 0
@@ -132,10 +133,9 @@ class EEGWaveLightMixer(LightMixer):
     def serveDefaultAnimation(self, thread):
         timeToNextColor = 0
         currentTime = 0
-        r,g,b = 0,0,0 # Starting color
+        r,g,b = 0,0,0 # Starting color. Black
 
-        # TODO move to Env var
-        self.defaultLight.brightness = DEFAULT_COLOR_ANIMATION_BRIGHTNESS
+        self.defaultLight.brightness = self.default_animation_brightness
 
         while not thread.stopped():
             if currentTime == timeToNextColor:
@@ -167,19 +167,19 @@ class EEGWaveLightMixer(LightMixer):
         self.mixedLight.brightness = int((self.userLight.brightness * self.connected_mean) + (self.defaultLight.brightness * (1-self.connected_mean)))
 
     # interprets user state as a color
-    def updateUserColorEEG(self):
+    def updateUserLight(self):
         # raw values are between 0 and 1. map it to 0-255
-        self.userColor.r = (self.userState.delta) * 255
-        self.userColor.g = (self.userState.beta) * 255
-        self.userColor.b = (self.userState.alpha) * 255
-        self.userColor.brightness = 125
+        self.userLight.r = self.userState.delta * 255
+        self.userLight.g = self.userState.beta * 255
+        self.userLight.b = self.userState.alpha * 255
+        self.userLight.brightness = self.user_light_brightness
 
     # This function can be asynced if need be
     def updateState(self, user_state):
         self.userState = user_state
         self.connected_mean = self.connected_rolling_mean_generator.next(user_state.connected)
         self.touching_forehead_mean = self.touching_forehead_mean_generator.next(user_state.touching_forehead)
-        self.updateUserColorEEG()
+        self.updateUserLight()
         self.updateMixedLight()
 
     def getLight(self):

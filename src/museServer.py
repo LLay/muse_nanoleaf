@@ -31,7 +31,11 @@ USER_TO_DEFAULT_FADE_WINDOW = 3
 # The delay in seconds between loss of signal on all contacts and ..doing something about it
 CONTACT_LOS_TIMEOUT = 3
 # the default brightness of the lights when the user is connected
-# DEFAULT_USER_BRIGHTNESS = 125
+USER_LIGHT_BRIGHTNESS = 125
+# the default brightness of the Default animation
+DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 255
+DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS = 125
+DEFAULT_ANIMATION_BRIGHTNESS_RANGE = 50
 
 # Light group addresses
 EEG_LIGHT_GROUP_ADDRESS= 1
@@ -109,8 +113,18 @@ class MuseServer(ServerThread):
         dmxClient.createLightGroup(EEG_LIGHT_GROUP_ADDRESS, Orcan2)
         dmxClient.createLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, PTVWIRE)
         # Create color mixing
-        eegMixer = EEGWaveLightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
-        spotlightMixer = SpotlightLightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
+        eegMixer = EEGWaveLightMixer(
+            user_to_default_fade_window=USER_TO_DEFAULT_FADE_WINDOW,
+            default_animation_render_rate=DEFAULT_ANIMATION_RENDER_RATE,
+            default_animation_brightness=DEFAULT_COLOR_ANIMATION_BRIGHTNESS,
+            user_color_brightness=USER_COLOR_BRIGHTNESS)
+        spotlightMixer = SpotlightLightMixer(
+            user_to_default_fade_window=USER_TO_DEFAULT_FADE_WINDOW,
+            default_animation_render_rate=DEFAULT_ANIMATION_RENDER_RATE,
+            default_animation_brightness=DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS,
+            default_animation_brightness_range=DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS_RANGE,
+            user_color_brightness=USER_COLOR_BRIGHTNESS
+            )
         # Start color mixing
         eegMixer.startDefaultAnimation()
         spotlightMixer.startDefaultAnimation()
@@ -183,10 +197,9 @@ class MuseServer(ServerThread):
         x = self.gamma_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
         self.state.gamma = x if not math.isnan(x) else 0
 
-
     @make_method('/muse/elements/touching_forehead', 'i')
     def horseshoe_callback(self, path, arg):
-        self.touching_forehead = arg
+        self.state.touching_forehead = int(arg)
 
     # horseshoe gives more granular information on which contacts have signal
     # from the brain
@@ -194,15 +207,8 @@ class MuseServer(ServerThread):
     # each contact 1 = good, 2 = ok, >=3 bad
     @make_method('/muse/elements/horseshoe', 'ffff')
     def horseshoe_callback(self, path, args):
-        chan_1, chan_2, chan_3, chan_4 = args
-        # TODO remove this if not a problem
-        if math.isnan(chan_1):
-            print "recieved NaN from /muse/elements/horseshoe. Fix this now"
-            sys.exit()
-
         # A score between 0 and 1 of how good the connections of the contacts are
-        connectionScore = (8 - (sum(map(lambda x: x if x <= 3 else 3, t)) - 4)) / 8.0
-
+        connectionScore = (8 - (sum(map(lambda x: x if x <= 3 else 3, args)) - 4)) / 8.0
         # logging
         self.connections_debug = args
 
