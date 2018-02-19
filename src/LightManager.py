@@ -5,7 +5,7 @@ import array
 import sys
 
 
-class Orcan2LightManager:
+class DMXLightManager:
     def DmxSent(self, state):
       if not state.Succeeded() or self.thread.stopped():
         self.clientWrapper.Stop()
