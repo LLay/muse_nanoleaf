@@ -1,4 +1,5 @@
 from collections import deque
+import math
 
 # https://github.com/kamyu104/LeetCode/blob/master/Python/moving-average-from-data-stream.py
 # Not weighted
@@ -18,6 +19,7 @@ class MovingAverage(object):
         :type val: int
         :rtype: float
         """
+        val = val if not math.isnan(val) else 0
         if len(self.__q) == self.__size:
             self.__sum -= self.__q.popleft()
         self.__sum += val
