@@ -8,6 +8,8 @@ from HelperClasses import MuseState
 from MovingAverage import MovingAverage
 from StoppableThread import StoppableThread
 
+DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 255 # Brightness
+
 class ColorState:
     def __init__(self):
         self.r = 0
@@ -27,7 +29,9 @@ class LightMixer():
 
         # These values help use keep track of when the user is connected to the muse
         self.connected_mean = 0
+        self.touching_forehead_mean = 0
         self.connected_rolling_mean_generator = MovingAverage(user_to_default_fade_window)
+        self.touching_forehead_mean_generator = MovingAverage(user_to_default_fade_window)
 
         self.userState = MuseState()
 
@@ -77,7 +81,10 @@ class LightMixer():
         timeToNextColor = 0
         currentTime = 0
         r,g,b = 0,0,0 # Starting color
-        self.defaultColor.brightness = 255 # Brightness
+
+        # TODO move to Env var
+        self.defaultColor.brightness = DEFAULT_COLOR_ANIMATION_BRIGHTNESS
+
         while not thread.stopped():
             if currentTime == timeToNextColor:
                 r_old,g_old,b_old = r,g,b
@@ -90,6 +97,11 @@ class LightMixer():
             self.defaultColor.r = ease(pytweening.easeInOutQuad, r_old, r, currentTime, timeToNextColor)
             self.defaultColor.g = ease(pytweening.easeInOutQuad, g_old, g, currentTime, timeToNextColor)
             self.defaultColor.b = ease(pytweening.easeInOutQuad, b_old, b, currentTime, timeToNextColor)
+
+            # Dim the animation when the user puts on the muse
+            # Dim to a minimum of 20% of the original animation brightness
+            brightnessModifier = 1-self.touching_forehead_mean if 1-self.touching_forehead_mean >= 0.2 else 0.2
+            self.defaultColor.brightness = DEFAULT_COLOR_ANIMATION_BRIGHTNESS * (1-self.touching_forehead_mean)
 
             currentTime += 1
             time.sleep(self.default_animation_render_rate)
@@ -116,6 +128,7 @@ class LightMixer():
     def updateStateForEEG(self, user_state):
         self.userState = user_state
         self.connected_mean = self.connected_rolling_mean_generator.next(user_state.connected)
+        self.touching_forehead_mean = self.touching_forehead_mean_generator.next(user_state.touching_forehead)
         self.updateUserColorEEG()
         self.updateMixedColor()
 

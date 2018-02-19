@@ -89,6 +89,7 @@ class MuseServer(ServerThread):
 
         self.all_contacts_mean = MovingAverage(CONTACT_LOS_TIMEOUT)
 
+        # EEG signals, connected, touching_forehead
         self.state = MuseState()
 
         self.connections_debug = (0, 0, 0, 0)
@@ -181,6 +182,11 @@ class MuseServer(ServerThread):
         input_w, input_x, input_y, input_z = args
         x = self.gamma_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
         self.state.gamma = x if not math.isnan(x) else 0
+
+
+    @make_method('/muse/elements/touching_forehead', 'i')
+    def horseshoe_callback(self, path, arg):
+        self.touching_forehead = arg
 
     # horseshoe gives more granular information on which contacts have signal
     # from the brain
