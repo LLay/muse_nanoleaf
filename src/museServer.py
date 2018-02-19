@@ -28,8 +28,12 @@ USER_TO_DEFAULT_FADE_WINDOW = 5
 # The delay in seconds between loss of signal on all contacts and ..doing something about it
 CONTACT_LOS_TIMEOUT = 3
 
+# Light group addresses
 EEG_LIGHT_GROUP_ADDRESS= 1
 SPOTLIGHT_LIGHT_GROUP_ADDRESS = 8
+
+# How often to print the log message in seconds
+LOG_PRINT_RATE = 1
 
 # Correct decimal place for relevant values. Don't change me!
 ROLLING_EEG_WINDOW *= 10
@@ -91,27 +95,37 @@ class MuseServer(ServerThread):
     def serveDMXLights(self, thread):
         dmxClient = DMXClient()
         dmxClient.createLightGroup(EEG_LIGHT_GROUP_ADDRESS, Orcan2)
-        dmxClient.createLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, PTVWIRE)
-
-        # Start color mixing
+        dmxClient.createLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, Orcan2)
+        # Create color mixing
         eegMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
         spotlightMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
+        # Start color mixing
         eegMixer.startDefaultColorAnimation()
         spotlightMixer.startDefaultSpotlightAnimation()
 
+        count = LOG_PRINT_RATE / LIGHT_UPDATE_INTERVAL
         while not thread.stopped():
             try:
                 eegMixer.updateStateForEEG(self.state)
                 spotlightMixer.updateStateForSpotlight(self.state)
 
-                dmxClient.updateLightGroup(EEG_LIGHT_GROUP_ADDRESS, eegMixer.getColor())
-                dmxClient.updateLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, spotlightMixer.getColor())
+                eegColor = eegMixer.getColor()
+                spotlightColor = spotlightMixer.getColor()
 
-                # Debugging
-                eeg = eegMixer.getColor()
-                spot = spotlightMixer.getColor()
-                print "RGB" , eeg.r, eeg.g, eeg.b, "SPOTLIGHT", spot.r, spot.g, spot.b
+                # Logging
+                if count >= LOG_PRINT_RATE / LIGHT_UPDATE_INTERVAL:
+                    e = eegColor
+                    s = spotlightColor
+                    print "User conectivity: %d" % (self.state.connected)
+                    print "Muse data: ALPHA: %d, BETA: %d, DELTA: %d, GAMMA: %d, THETA: %d" % (self.state.alpha, self.state.beta, self.state.delta, self.state.gamma, self.state.theta)
+                    print "Muse lights (from Mixer), ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (EEG_LIGHT_GROUP_ADDRESS, e.r, e.g, e.b, e.brightness)
+                    print "Spotlight (from Mixer),   ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (SPOTLIGHT_LIGHT_GROUP_ADDRESS, s.r, s.g, s.b, s.brightness)
+                    count = 0
 
+                dmxClient.updateLightGroup(EEG_LIGHT_GROUP_ADDRESS, eegColor)
+                dmxClient.updateLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, spotlightColor)
+
+                count += 1
                 time.sleep(LIGHT_UPDATE_INTERVAL)
 
             except Exception, err:
