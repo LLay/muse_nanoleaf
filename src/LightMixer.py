@@ -214,6 +214,7 @@ class EEGWaveLightMixer(LightMixer):
     # This function can be asynced if need be
     def updateState(self, user_state):
         self.userState = user_state
+        print "self.user_state.connected ", self.user_state.connected, "self.connected_mean", self.connected_mean
         self.connected_mean = self.connected_rolling_mean_generator.next(user_state.connected)
         self.touching_forehead_mean = self.touching_forehead_mean_generator.next(user_state.touching_forehead)
         self.updateUserLight()
