@@ -45,7 +45,7 @@ def avg(*values):
 class DMXClient():
     # @selectedLights (int array) Which lights this client talks to
     def __init__(self):
-        self.lightManager = Orcan2LightManager(tickInterval=.01)
+        self.lightManager = Orcan2LightManager(tickInterval=10)
         thread = StoppableThread(target = self.lightManager.run)
         thread.start()
         pass
@@ -95,7 +95,7 @@ class MuseServer(ServerThread):
     def serveDMXLights(self, thread):
         dmxClient = DMXClient()
         dmxClient.createLightGroup(EEG_LIGHT_GROUP_ADDRESS, Orcan2)
-        dmxClient.createLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, Orcan2)
+        dmxClient.createLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, PTVWIRE)
         # Create color mixing
         eegMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
         spotlightMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
