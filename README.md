@@ -28,5 +28,6 @@ Developed on OSX 10.13.3 High Sierra
 We used [this example](http://developer.choosemuse.com/research-tools-example/grabbing-data-from-museio-a-few-simple-examples-of-muse-osc-servers#python) to get started with pyliblo
 
 ### Resources
-[Muse api](http://developer.choosemuse.com/tools/available-data)
-[OLA API](https://www.openlighting.org/ola/developer-documentation/python-api/)
+- [Muse api](http://developer.choosemuse.com/tools/available-data)
+- [OLA API](https://www.openlighting.org/ola/developer-documentation/python-api/)
+- [pyliblo](http://das.nasophon.de/pyliblo/) (for OSC messages)
