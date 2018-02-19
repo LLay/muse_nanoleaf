@@ -5,7 +5,7 @@ import time
 import sys
 
 from HelperClasses import MuseState
-from MovingAverage import MovingAverage
+from MovingAverage import MovingAverage, MovingAverageLinear
 from StoppableThread import StoppableThread
 
 class LightState:
@@ -42,8 +42,8 @@ class SpotlightLightMixer(LightMixer):
         # These values help use keep track of when the user is connected to the muse
         self.connected_mean = 0
         self.touching_forehead_mean = 0
-        self.connected_rolling_mean_generator = MovingAverage(user_to_default_fade_window)
-        self.touching_forehead_mean_generator = MovingAverage(user_to_default_fade_window)
+        self.connected_rolling_mean_generator = MovingAverageLinear(user_to_default_fade_window)
+        self.touching_forehead_mean_generator = MovingAverageLinear(user_to_default_fade_window)
 
         self.userState = MuseState()
 
@@ -123,8 +123,8 @@ class EEGWaveLightMixer(LightMixer):
         # These values help use keep track of when the user is connected to the muse
         self.connected_mean = 0
         self.touching_forehead_mean = 0
-        self.connected_rolling_mean_generator = MovingAverage(user_to_default_fade_window)
-        self.touching_forehead_mean_generator = MovingAverage(user_to_default_fade_window)
+        self.connected_rolling_mean_generator = MovingAverageLinear(user_to_default_fade_window)
+        self.touching_forehead_mean_generator = MovingAverageLinear(user_to_default_fade_window)
 
         # Muse data, and user info
         self.userState = MuseState()
@@ -201,7 +201,6 @@ class EEGWaveLightMixer(LightMixer):
         self.mixedLight.g = int((self.userLight.g * self.connected_mean) + (self.defaultLight.g * (1-self.connected_mean)))
         self.mixedLight.b = int((self.userLight.b * self.connected_mean) + (self.defaultLight.b * (1-self.connected_mean)))
         self.mixedLight.brightness = int((self.userLight.brightness * self.connected_mean) + (self.defaultLight.brightness * (1-self.connected_mean)))
-        print "Mixed lights, unmixed. COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d, connected mean %s" % (e.r, e.g, e.b, e.brightness, str(self.connected_mean))
 
     # interprets user state as a color
     def updateUserLight(self):
@@ -214,7 +213,6 @@ class EEGWaveLightMixer(LightMixer):
     # This function can be asynced if need be
     def updateState(self, user_state):
         self.userState = user_state
-        print "self.user_state.connected ", self.user_state.connected, "self.connected_mean", self.connected_mean
         self.connected_mean = self.connected_rolling_mean_generator.next(user_state.connected)
         self.touching_forehead_mean = self.touching_forehead_mean_generator.next(user_state.touching_forehead)
         self.updateUserLight()

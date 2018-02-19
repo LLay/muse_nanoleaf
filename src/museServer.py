@@ -11,7 +11,7 @@ from LightManager import DMXLightManager
 from Orcan2 import Orcan2
 from PTVWIRE import PTVWIRE
 from LightMixer import EEGWaveLightMixer, SpotlightLightMixer
-from MovingAverage import MovingAverage
+from MovingAverage import MovingAverage, MovingAverageLinear
 from StoppableThread import StoppableThread
 from HelperClasses import MuseState
 
@@ -91,7 +91,7 @@ class MuseServer(ServerThread):
         self.gamma_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
         self.theta_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
 
-        self.all_contacts_mean = MovingAverage(CONTACT_LOS_TIMEOUT)
+        self.all_contacts_mean = MovingAverageLinear(CONTACT_LOS_TIMEOUT)
 
         # EEG signals, connected, touching_forehead
         self.state = MuseState()
@@ -160,7 +160,7 @@ class MuseServer(ServerThread):
                     e = eegLight
                     s = spotlightLight
                     print ""
-                    print "User conectivity: %d raw: %s" % (self.state.connected, str(self.connections_debug))
+                    print "User conectivity (binary): %d score: %f raw: %s" % (self.state.connected, self.state.connectionScore, str(self.connections_debug))
                     print "Muse data: ALPHA: %f, BETA: %f, DELTA: %f, GAMMA: %f, THETA: %f" % (self.state.alpha, self.state.beta, self.state.delta, self.state.gamma, self.state.theta)
                     print "Muse lights (from Mixer), ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (EEG_LIGHT_GROUP_ADDRESS, e.r, e.g, e.b, e.brightness)
                     print "Spotlight (from Mixer),   ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (SPOTLIGHT_LIGHT_GROUP_ADDRESS, s.r, s.g, s.b, s.brightness)
