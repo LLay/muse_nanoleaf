@@ -77,7 +77,7 @@ class LightMixer():
         timeToNextColor = 0
         currentTime = 0
         r,g,b = 0,0,0 # Starting color
-        self.defaultColor.brightness = 255 # Brightness
+        self.defaultColor.brightness = 125 # Brightness
         while not thread.stopped():
             if currentTime == timeToNextColor:
                 r_old,g_old,b_old = r,g,b

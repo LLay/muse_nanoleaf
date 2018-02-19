@@ -5,7 +5,7 @@ import time
 import random
 import traceback
 import math
-
+import numpy as np
 from threading import Thread
 from LightManager import DMXLightManager
 from Orcan2 import Orcan2
@@ -92,7 +92,6 @@ class MuseServer(ServerThread):
         self.state = MuseState()
 
         self.connections_debug = (0, 0, 0, 0)
-
         self.lightServerThread = None
         self.startServingLights()
 
@@ -151,41 +150,59 @@ class MuseServer(ServerThread):
         spotlightMixer.kill()
         sys.exit()
 
-    # receive delta data
-    @make_method('/muse/elements/delta_relative', 'ffff')
-    def delta_relative_callback(self, path, args):
-        input_w, input_x, input_y, input_z = args
-        x = self.delta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
-        self.state.delta = x if not math.isnan(x) else 0
-    # receive theta data
-    @make_method('/muse/elements/theta_relative', 'ffff')
-    def theta_relative_callback(self, path, args):
-        input_w, input_x, input_y, input_z = args
-        x = self.theta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
-        self.state.theta = x if not math.isnan(x) else 0
     # receive alpha data
+
     @make_method('/muse/elements/alpha_relative', 'ffff')
-    def alpha_relative_callback(self, path, args):
-        input_w, input_x, input_y, input_z = args
-        x = self.alpha_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+    def alpha_relative_callback(self, path, *args):
+        weights = np.array([2, 0, 0, 2])
+        values = np.array(args[0])
+        alphaWeightedAndNormalized = self.weighter(values, weights, normalizationMin = .1, normalizationMax=.5)
+        x = self.alpha_relative_rolling_avg_generator.next(alphaWeightedAndNormalized)
         self.state.alpha = x if not math.isnan(x) else 0
+
+    def weighter(self, values, weights, normalizationMin = 0, normalizationMax = 1):
+        avgVal = np.average(np.multiply(values,weights))
+        normalizedAvgVal = (avgVal - normalizationMin) / (normalizationMax - normalizationMin)
+        return normalizedAvgVal
+
     # receive beta data
     @make_method('/muse/elements/beta_relative', 'ffff')
-    def beta_relative_callback(self, path, args):
-        input_w, input_x, input_y, input_z = args
-        x = self.beta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+    def beta_relative_callback(self, path, *args):
+        weights = np.array([0, 2, 0, 2])
+        values = args[0]
+        betaWeightedAndNormalized = self.weighter(values, weights, normalizationMin=.15, normalizationMax=.7)
+        x = self.beta_relative_rolling_avg_generator.next(betaWeightedAndNormalized)
         self.state.beta = x if not math.isnan(x) else 0
+
     # receive gamma data
     @make_method('/muse/elements/gamma_relative', 'ffff')
-    def gamma_relative_callback(self, path, args):
-        input_w, input_x, input_y, input_z = args
+    def gamma_relative_callback(self, path, *args):
+        values = args[0]
+        input_w, input_x, input_y, input_z = values
         x = self.gamma_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
         self.state.gamma = x if not math.isnan(x) else 0
 
+    # receive delta data
+    @make_method('/muse/elements/delta_relative', 'ffff')
+    def delta_relative_callback(self, path, *args):
+        values = args[0]
+        input_w, input_x, input_y, input_z = values
+        x = self.delta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        self.state.delta = x if not math.isnan(x) else 0
+
+    # receive theta data
+    @make_method('/muse/elements/theta_relative', 'ffff')
+    def theta_relative_callback(self, path, *args):
+        values = args[0]
+        input_w, input_x, input_y, input_z = values
+        x = self.theta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        self.state.theta = x if not math.isnan(x) else 0
+
     # is good is for whether or not a contact has signal from the brain
     @make_method('/muse/elements/is_good', 'iiii')
-    def is_good_callback(self, path, args):
-        chan_1, chan_2, chan_3, chan_4 = args
+    def is_good_callback(self, path, *args):
+        values = args[0]
+        chan_1, chan_2, chan_3, chan_4 = values
         all_contacts = avg(chan_1, chan_2, chan_3, chan_4)
 
         # logging
