@@ -81,8 +81,8 @@ class SpotlightLightMixer(LightMixer):
                 timeToNextBrightness = random.randint(6/self.default_animation_render_rate,8/self.default_animation_render_rate)
                 currentTime = 0
 
-            undulatingBrightness = ease(pytweening.easeInOutQuad, brightness_old, brightness, currentTime, timeToNextBrightness)
-            self.defaultLight.brightness = undulatingBrightness * (1-self.userState.connectionScore)
+            self.defaultLight.brightness = ease(pytweening.easeInOutQuad, brightness_old, brightness, currentTime, timeToNextBrightness)
+            # self.defaultLight.brightness = ease(pytweening.easeInOutQuad, brightness_old, brightness, currentTime, timeToNextBrightness) * (1-self.userState.connectionScore) # modify using the connection score. This is jumpy, so not using for now
 
             currentTime += 1
             time.sleep(self.default_animation_render_rate)
