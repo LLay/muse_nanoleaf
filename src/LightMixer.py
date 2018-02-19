@@ -196,12 +196,12 @@ class EEGWaveLightMixer(LightMixer):
 
     # This mixes the use and default colours depending on if the user is connected or not
     def updateMixedLight(self):
-        e=self.defaultLight
-        print "Default lights, unmixed. COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (e.r, e.g, e.b, e.brightness)
+        e=self.mixedLight
         self.mixedLight.r = int((self.userLight.r * self.connected_mean) + (self.defaultLight.r * (1-self.connected_mean)))
         self.mixedLight.g = int((self.userLight.g * self.connected_mean) + (self.defaultLight.g * (1-self.connected_mean)))
         self.mixedLight.b = int((self.userLight.b * self.connected_mean) + (self.defaultLight.b * (1-self.connected_mean)))
         self.mixedLight.brightness = int((self.userLight.brightness * self.connected_mean) + (self.defaultLight.brightness * (1-self.connected_mean)))
+        print "Mixed lights, unmixed. COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d, connected mean %s" % (e.r, e.g, e.b, e.brightness, str(self.connected_mean))
 
     # interprets user state as a color
     def updateUserLight(self):
