@@ -3,6 +3,9 @@ from liblo import *
 import sys
 import time
 import random
+import traceback
+import math
+
 from threading import Thread
 from LightManager import Orcan2LightManager
 from Orcan2 import Orcan2
@@ -27,6 +30,8 @@ ROLLING_EEG_WINDOW = 3
 USER_TO_DEFAULT_FADE_WINDOW = 5
 # The delay in seconds between loss of signal on all contacts and ..doing something about it
 CONTACT_LOS_TIMEOUT = 3
+# the default brightness of the lights when the user is connected
+DEFAULT_USER_BRIGHTNESS = 125
 
 # Light group addresses
 EEG_LIGHT_GROUP_ADDRESS= 1
@@ -48,28 +53,32 @@ class DMXClient():
         self.lightManager = Orcan2LightManager(tickInterval=.01)
         thread = StoppableThread(target = self.lightManager.run)
         thread.start()
-        pass
 
     def createLightGroup(self, address, lightClass):
         self.lightManager.createLightGroup(address, lightClass)
-        pass
 
     def updateLightGroup(self, address, color):
+        self.updateLightGroupBrightness(address, color)
+        self.updateLightGroupColor(address, color)
+
+    def updateLightGroupBrightness(self, address, color):
         self.lightManager.getLightGroup(address).setRGB(int(color.r), int(color.g), int(color.b))
-        pass
+
+    def updateLightGroupColor(self, address, color):
+        self.lightManager.getLightGroup(address).setBrightness(int(color.brightness))
 
     def kill(self):
         self.lightManager.thread.stop()
         #TODO Implement self.lightManager.kill()
-        pass
 
 class NodeLeafClient():
     pass
 
 # MuseServer
 class MuseServer(ServerThread):
-    #listen for messages on port 5000
+
     def __init__(self):
+        # Listen on port 5001
         ServerThread.__init__(self, 5001)
 
         self.alpha_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
@@ -81,6 +90,8 @@ class MuseServer(ServerThread):
         self.all_contacts_mean = MovingAverage(CONTACT_LOS_TIMEOUT)
 
         self.state = MuseState()
+
+        self.connections_debug = (0, 0, 0, 0)
 
         self.lightServerThread = None
         self.startServingLights()
@@ -96,6 +107,7 @@ class MuseServer(ServerThread):
         dmxClient = DMXClient()
         dmxClient.createLightGroup(EEG_LIGHT_GROUP_ADDRESS, Orcan2)
         dmxClient.createLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, Orcan2)
+
         # Create color mixing
         eegMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
         spotlightMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
@@ -116,8 +128,8 @@ class MuseServer(ServerThread):
                 if count >= LOG_PRINT_RATE / LIGHT_UPDATE_INTERVAL:
                     e = eegColor
                     s = spotlightColor
-                    print "User conectivity: %d" % (self.state.connected)
-                    print "Muse data: ALPHA: %d, BETA: %d, DELTA: %d, GAMMA: %d, THETA: %d" % (self.state.alpha, self.state.beta, self.state.delta, self.state.gamma, self.state.theta)
+                    print "User conectivity: %d raw: %s" % (self.state.connected, str(self.connections_debug))
+                    print "Muse data: ALPHA: %f, BETA: %f, DELTA: %f, GAMMA: %f, THETA: %f" % (self.state.alpha, self.state.beta, self.state.delta, self.state.gamma, self.state.theta)
                     print "Muse lights (from Mixer), ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (EEG_LIGHT_GROUP_ADDRESS, e.r, e.g, e.b, e.brightness)
                     print "Spotlight (from Mixer),   ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (SPOTLIGHT_LIGHT_GROUP_ADDRESS, s.r, s.g, s.b, s.brightness)
                     count = 0
@@ -129,7 +141,8 @@ class MuseServer(ServerThread):
                 time.sleep(LIGHT_UPDATE_INTERVAL)
 
             except Exception, err:
-                print "Exception in serveDMXLights: ", err
+                print "Exception in serveDMXLights: ", err.__class__.__name__, err.message
+                traceback.print_exc(err)
                 dmxClient.kill()
                 eegMixer.kill()
                 spotlightMixer.kill()
@@ -143,42 +156,50 @@ class MuseServer(ServerThread):
     @make_method('/muse/elements/delta_relative', 'ffff')
     def delta_relative_callback(self, path, args):
         input_w, input_x, input_y, input_z = args
-        self.state.delta = self.delta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        x = self.delta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        self.state.delta = x if not math.isnan(x) else 0
     # receive theta data
     @make_method('/muse/elements/theta_relative', 'ffff')
     def theta_relative_callback(self, path, args):
         input_w, input_x, input_y, input_z = args
-        self.state.theta = self.theta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        x = self.theta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        self.state.theta = x if not math.isnan(x) else 0
     # receive alpha data
     @make_method('/muse/elements/alpha_relative', 'ffff')
     def alpha_relative_callback(self, path, args):
         input_w, input_x, input_y, input_z = args
-        self.state.alpha = self.alpha_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        x = self.alpha_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        self.state.alpha = x if not math.isnan(x) else 0
     # receive beta data
     @make_method('/muse/elements/beta_relative', 'ffff')
     def beta_relative_callback(self, path, args):
         input_w, input_x, input_y, input_z = args
-        self.state.beta = self.beta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        x = self.beta_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        self.state.beta = x if not math.isnan(x) else 0
     # receive gamma data
     @make_method('/muse/elements/gamma_relative', 'ffff')
     def gamma_relative_callback(self, path, args):
         input_w, input_x, input_y, input_z = args
-        self.state.gamma = self.gamma_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
-
+        x = self.gamma_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
+        self.state.gamma = x if not math.isnan(x) else 0
 
     # is good is for whether or not a contact has signal from the brain
     @make_method('/muse/elements/is_good', 'iiii')
     def is_good_callback(self, path, args):
         chan_1, chan_2, chan_3, chan_4 = args
         all_contacts = avg(chan_1, chan_2, chan_3, chan_4)
-        # print "%s, %f, %f, %f, %f" % (path, chan_1, chan_2, chan_3, chan_4)
+
+        # logging
+        self.connections_debug = args
 
         if self.all_contacts_mean.next(all_contacts) == 0 and self.state.connected:
             # It has been at least CONTACT_LOS_TIMEOUT seconds of total LOS on all contacts
             self.state.connected = 0
+            print "LOST CONNECTION"
 
         if all_contacts == 1 and not self.state.connected:
             # This is the first time the user has put the muse on in at least CONTACT_LOS_TIMEOUT second
+            print "CONNECTED!!"
             self.state.connected = 1
 
     #receive accelrometer data
