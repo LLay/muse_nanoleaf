@@ -27,11 +27,11 @@ DEFAULT_ANIMATION_RENDER_RATE = 0.01
 # Number of second over which we average eeg signals.
 ROLLING_EEG_WINDOW = 3
 # Number of second over which fade between user input and the default light animation.
-USER_TO_DEFAULT_FADE_WINDOW = 5
+USER_TO_DEFAULT_FADE_WINDOW = 3
 # The delay in seconds between loss of signal on all contacts and ..doing something about it
 CONTACT_LOS_TIMEOUT = 3
 # the default brightness of the lights when the user is connected
-DEFAULT_USER_BRIGHTNESS = 125
+# DEFAULT_USER_BRIGHTNESS = 125
 
 # Light group addresses
 EEG_LIGHT_GROUP_ADDRESS= 1
@@ -40,15 +40,15 @@ SPOTLIGHT_LIGHT_GROUP_ADDRESS = 8
 # How often to print the log message in seconds
 LOG_PRINT_RATE = 1
 
-# Correct decimal place for relevant values. Don't change me!
+# Correct decimal place for relevant values. XXX Don't change me!
 ROLLING_EEG_WINDOW *= 10
 CONTACT_LOS_TIMEOUT *= 10
+USER_TO_DEFAULT_FADE_WINDOW = USER_TO_DEFAULT_FADE_WINDOW / LIGHT_UPDATE_INTERVAL or 1
 
 def avg(*values):
     return reduce(lambda x, y: x + y, values) / len(values)
 
 class DMXClient():
-    # @selectedLights (int array) Which lights this client talks to
     def __init__(self):
         self.lightManager = Orcan2LightManager(tickInterval=10)
         thread = StoppableThread(target = self.lightManager.run)
@@ -182,21 +182,30 @@ class MuseServer(ServerThread):
         x = self.gamma_relative_rolling_avg_generator.next(avg(input_w, input_x, input_y, input_z))
         self.state.gamma = x if not math.isnan(x) else 0
 
-    # is good is for whether or not a contact has signal from the brain
-    @make_method('/muse/elements/is_good', 'iiii')
-    def is_good_callback(self, path, args):
+    # horseshoe gives more granular information on which contacts have signal
+    # from the brain
+    # We get a tuple of 4 numbers, each representing the connectivity of
+    # each contact 1 = good, 2 = ok, >=3 bad
+    @make_method('/muse/elements/horseshoe', 'ffff')
+    def horseshoe_callback(self, path, args):
         chan_1, chan_2, chan_3, chan_4 = args
-        all_contacts = avg(chan_1, chan_2, chan_3, chan_4)
+        # TODO remove this if not a problem
+        if math.isnan(chan_1):
+            print "recieved NaN from /muse/elements/horseshoe. Fix this now"
+            sys.exit()
+
+        # A score between 0 and 1 of how good the connections of the contacts are
+        connectionScore = (8 - (sum(map(lambda x: x if x <= 3 else 3, t)) - 4)) / 8.0
 
         # logging
         self.connections_debug = args
 
-        if self.all_contacts_mean.next(all_contacts) == 0 and self.state.connected:
+        if self.all_contacts_mean.next(connectionScore) == 0 and self.state.connected:
             # It has been at least CONTACT_LOS_TIMEOUT seconds of total LOS on all contacts
             self.state.connected = 0
             print "LOST CONNECTION"
 
-        if all_contacts == 1 and not self.state.connected:
+        if connectionScore > 0.5 and not self.state.connected:
             # This is the first time the user has put the muse on in at least CONTACT_LOS_TIMEOUT second
             print "CONNECTED!!"
             self.state.connected = 1

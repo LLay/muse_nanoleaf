@@ -9,7 +9,7 @@ class MovingAverage(object):
         Initialize your data structure here.
         :type size: int
         """
-        self.__size = size
+        self.__size = size if size >= 1 else 1
         self.__sum = 0
         self.__q = deque([])
 
