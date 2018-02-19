@@ -73,7 +73,7 @@ class SpotlightLightMixer(LightMixer):
         timeToNextBrightness = 0
         currentTime = 0
         self.defaultLight.r,self.defaultLight.g,self.defaultLight.b = 255,255,255 # Starting color. White
-        brightness = 0 # Fade in the spotlight on saerver start
+        brightness = 0 # Fade in the spotlight on server start
         while not thread.stopped():
             if currentTime == timeToNextBrightness:
                 brightness_old = brightness
@@ -196,6 +196,8 @@ class EEGWaveLightMixer(LightMixer):
 
     # This mixes the use and default colours depending on if the user is connected or not
     def updateMixedLight(self):
+        e=self.defaultLight
+        print "Default lights, unmixed. COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (e.r, e.g, e.b, e.brightness)
         self.mixedLight.r = int((self.userLight.r * self.connected_mean) + (self.defaultLight.r * (1-self.connected_mean)))
         self.mixedLight.g = int((self.userLight.g * self.connected_mean) + (self.defaultLight.g * (1-self.connected_mean)))
         self.mixedLight.b = int((self.userLight.b * self.connected_mean) + (self.defaultLight.b * (1-self.connected_mean)))
