@@ -10,7 +10,7 @@ from threading import Thread
 from LightManager import Orcan2LightManager
 from Orcan2 import Orcan2
 from PTVWIRE import PTVWIRE
-from LightMixer import LightMixer
+from LightMixer import EEGWaveLightMixer, SpotlightLightMixer
 from MovingAverage import MovingAverage
 from StoppableThread import StoppableThread
 from HelperClasses import MuseState
@@ -109,17 +109,17 @@ class MuseServer(ServerThread):
         dmxClient.createLightGroup(EEG_LIGHT_GROUP_ADDRESS, Orcan2)
         dmxClient.createLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, PTVWIRE)
         # Create color mixing
-        eegMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
-        spotlightMixer = LightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
+        eegMixer = EEGWaveLightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
+        spotlightMixer = SpotlightLightMixer(USER_TO_DEFAULT_FADE_WINDOW, DEFAULT_ANIMATION_RENDER_RATE)
         # Start color mixing
-        eegMixer.startDefaultLightAnimation()
-        spotlightMixer.startDefaultSpotlightAnimation()
+        eegMixer.startDefaultAnimation()
+        spotlightMixer.startDefaultAnimation()
 
         count = LOG_PRINT_RATE / LIGHT_UPDATE_INTERVAL
         while not thread.stopped():
             try:
-                eegMixer.updateStateForEEG(self.state)
-                spotlightMixer.updateStateForSpotlight(self.state)
+                eegMixer.updateState(self.state)
+                spotlightMixer.updateState(self.state)
 
                 eegLight = eegMixer.getLight()
                 spotlightLight = spotlightMixer.getLight()

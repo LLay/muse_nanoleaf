@@ -8,7 +8,7 @@ from HelperClasses import MuseState
 from MovingAverage import MovingAverage
 from StoppableThread import StoppableThread
 
-DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 255 # Brightness
+DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 255
 
 class LightState:
     def __init__(self):
@@ -24,6 +24,14 @@ def ease(easingFunc, old_value, new_value, current_increment, final_increment):
     return int(old_value - increment)
 
 class LightMixer():
+    def updateState(self, user_state):
+        raise NotImplementedError('Need to implement updateState')
+    def getLight(self):
+        raise NotImplementedError('Need to implement getLight')
+    def kill(self):
+        raise NotImplementedError('Need to implement kill')
+
+class SpotlightLightMixer(LightMixer):
     def __init__(self, user_to_default_fade_window, default_animation_render_rate):
         self.default_animation_render_rate = default_animation_render_rate
 
@@ -45,16 +53,11 @@ class LightMixer():
         # transitions to the default animation color
         self.mixedLight = LightState()
 
+    def startDefaultAnimation(self):
+        self.defaultAnimationThread = StoppableThread(self.serveDefaultAnimation, )
+        self.defaultAnimationThread.start()
 
-    def startDefaultLightAnimation(self):
-        self.defaultLightThread = StoppableThread(self.serveDefaultColorAnimation, )
-        self.defaultLightThread.start()
-
-    def startDefaultSpotlightAnimation(self):
-        self.spotlightThread = StoppableThread(self.serveDefaultSpotlightAnimation, )
-        self.spotlightThread.start()
-
-    def serveDefaultSpotlightAnimation(self, thread):
+    def serveDefaultAnimation(self, thread):
         #settings
         brightness_lower_bound = 100
         brightness_upper_bound = 200
@@ -77,7 +80,56 @@ class LightMixer():
             time.sleep(self.default_animation_render_rate)
         sys.exit()
 
-    def serveDefaultColorAnimation(self, thread):
+    # This mixes the use and default colours depending on if the user is connected or not
+    def updateMixedLight(self):
+        self.mixedLight.r = int((self.userLight.r * self.connected_mean) + (self.defaultLight.r * (1-self.connected_mean)))
+        self.mixedLight.g = int((self.userLight.g * self.connected_mean) + (self.defaultLight.g * (1-self.connected_mean)))
+        self.mixedLight.b = int((self.userLight.b * self.connected_mean) + (self.defaultLight.b * (1-self.connected_mean)))
+        self.mixedLight.brightness = int((self.userLight.brightness * self.connected_mean) + (self.defaultLight.brightness * (1-self.connected_mean)))
+
+    # This function can be asynced if need be
+    def updateState(self, user_state):
+        self.userState = user_state
+        self.connected_mean = self.connected_rolling_mean_generator.next(user_state.connected)
+        self.updateMixedLight()
+        # Note that we leave the user colors as black,
+        # to fade the spotlight off when a user is connected
+
+    def getLight(self):
+        return self.mixedLight
+
+    def kill(self):
+        if hasattr(self, 'defaultAnimationThread'):
+            self.defaultAnimationThread.stop()
+
+
+class EEGWaveLightMixer(LightMixer):
+    def __init__(self, user_to_default_fade_window, default_animation_render_rate):
+        self.default_animation_render_rate = default_animation_render_rate
+
+        # These values help use keep track of when the user is connected to the muse
+        self.connected_mean = 0
+        self.touching_forehead_mean = 0
+        self.connected_rolling_mean_generator = MovingAverage(user_to_default_fade_window)
+        self.touching_forehead_mean_generator = MovingAverage(user_to_default_fade_window)
+
+        self.userState = MuseState()
+
+        # The data that represents the muse data
+        self.userLight = LightState()
+        # The current colour of the default animation
+        self.defaultLight = LightState()
+        # The weighted mix of the user and default animation color.
+        # When the user connects (to the muse) this color will transition
+        # over 3 seconds to be their color, whe the user disconnects, this color
+        # transitions to the default animation color
+        self.mixedLight = LightState()
+
+    def startDefaultAnimation(self):
+        self.defaultAnimationThread = StoppableThread(self.serveDefaultAnimation, )
+        self.defaultAnimationThread.start()
+
+    def serveDefaultAnimation(self, thread):
         timeToNextColor = 0
         currentTime = 0
         r,g,b = 0,0,0 # Starting color
@@ -125,26 +177,16 @@ class LightMixer():
         self.userLight.brightness = 125
 
     # This function can be asynced if need be
-    def updateStateForEEG(self, user_state):
+    def updateState(self, user_state):
         self.userState = user_state
         self.connected_mean = self.connected_rolling_mean_generator.next(user_state.connected)
         self.touching_forehead_mean = self.touching_forehead_mean_generator.next(user_state.touching_forehead)
         self.updateUserColorEEG()
         self.updateMixedLight()
 
-    # This function can be asynced if need be
-    def updateStateForSpotlight(self, user_state):
-        self.userState = user_state
-        self.connected_mean = self.connected_rolling_mean_generator.next(user_state.connected)
-        self.updateMixedLight()
-        # Note that we leave the user colors as black,
-        # to fade the spotlight off when a user is connected
-
     def getLight(self):
         return self.mixedLight
 
     def kill(self):
-        if hasattr(self, 'defaultLightThread'):
-            self.defaultLighthread.stop()
-        if hasattr(self, 'spotlightThread'):
-            self.spotlightThread.stop()
+        if hasattr(self, 'defaultAnimationThread'):
+            self.defaultAnimationThread.stop()
