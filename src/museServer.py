@@ -95,17 +95,17 @@ class MuseServer(ServerThread):
 
         # EEG signals, connected, touching_forehead
         self.state = MuseState()
-        self.state.alpha = .32
-        self.state.beta = .32
-        self.state.delta = .32
-        self.state.gamma = .32
-        self.state.theta = .32
 
         self.connections_debug = (0, 0, 0, 0)
 
         self.lightServerThread = None
         self.startServingLights()
 
+        # self.state.alpha = .32
+        # self.state.beta = .32
+        # self.state.delta = .32
+        # self.state.gamma = .32
+        # self.state.theta = .32
         # self.connectThread = StoppableThread(self.connectToggle)
         # self.connectThread.start()
 
@@ -218,7 +218,9 @@ class MuseServer(ServerThread):
 
     @make_method('/muse/elements/touching_forehead', 'i')
     def horseshoe_callback(self, path, arg):
-        self.state.touching_forehead = int(arg)
+        # TODO apparently this callback never gets called
+        x = int(arg) if not math.isnan(arg[0]) else 0
+        self.state.touching_forehead = x
 
     # horseshoe gives more granular information on which contacts have signal
     # from the brain

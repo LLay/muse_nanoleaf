@@ -168,6 +168,13 @@ class EEGWaveLightMixer(LightMixer):
                 # Fade lights in over 2 second
                 oneTimeFadeIn += 0.5 * self.default_animation_render_rate
 
+            # Dim the animation when the user puts on the muse
+            # Dim to a minimum of 20% of the original animation brightness
+            # TODO
+            # brightnessModifier = 1-self.touching_forehead_mean
+            # brightnessModifier = max(0.2, brightnessModifier)
+            # self.defaultLight.brightness = self.default_animation_brightness * (1-self.touching_forehead_mean)
+
             self.defaultLight.brightness = self.default_animation_brightness * oneTimeFadeIn
             currentTime += 1
             time.sleep(self.default_animation_render_rate)
