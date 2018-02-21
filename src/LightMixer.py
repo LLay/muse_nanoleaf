@@ -139,7 +139,7 @@ class EEGWaveLightMixer(LightMixer):
         self.gammaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
         self.thetaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
 
-        # The data that represents the muse data
+        # The data that represents the user light
         self.userLight = LightState()
         # The current colour of the default animation
         self.defaultLight = LightState()
@@ -169,6 +169,7 @@ class EEGWaveLightMixer(LightMixer):
             self.rollingUserGamma = self.gammaRollingAvgGenerator.next(self.userState.gamma)
             self.rollingUserTheta = self.thetaRollingAvgGenerator.next(self.userState.theta)
             time.sleep(LIGHT_UPDATE_INTERVAL)
+        sys.exit()
 
     def startEasingEEGValues(self):
         self.defaultAnimationThread = StoppableThread(self.serveDefaultAnimation, )
@@ -257,7 +258,6 @@ class EEGWaveLightMixer(LightMixer):
         return self.mixedLight
 
     def kill(self):
+        self.easeEEGValuesThread.stop()
         if hasattr(self, 'defaultAnimationThread'):
             self.defaultAnimationThread.stop()
-        if hasattr(self, 'defaultAnimationThread'):
-            self.easeEEGValuesThread.stop()
