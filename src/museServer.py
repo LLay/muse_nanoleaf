@@ -73,13 +73,13 @@ class MuseServer(ServerThread):
         self.lightServerThreadDMX = StoppableThread(self.serveDMXLights)
         self.lightServerThreadDMX.start()
 
-        self.state.alpha = .32
-        self.state.beta = .32
-        self.state.delta = .32
-        self.state.gamma = .32
-        self.state.theta = .32
-        self.connectThread = StoppableThread(self.connectToggle)
-        self.connectThread.start()
+        # self.state.alpha = .32
+        # self.state.beta = .32
+        # self.state.delta = .32
+        # self.state.gamma = .32
+        # self.state.theta = .32
+        # self.connectThread = StoppableThread(self.connectToggle)
+        # self.connectThread.start()
 
     def connectToggle(self, thread):
         self.state.connected = 1
