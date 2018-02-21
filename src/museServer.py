@@ -15,38 +15,11 @@ from LightMixer import EEGWaveLightMixer, SpotlightLightMixer
 from MovingAverage import MovingAverage, MovingAverageLinear
 from StoppableThread import StoppableThread
 from HelperClasses import MuseState
-from Config import LIGHT_UPDATE_INTERVAL
+import Config as config
 
 # Debugging memory usage
 # from guppy import hpy
 # h = hpy()
-
-# How often we internally render an new frame of the default animation
-DEFAULT_ANIMATION_RENDER_RATE = 0.01
-# Number of second over which we average eeg signals.
-ROLLING_EEG_WINDOW = 6
-# Number of second over which fade between user input and the default light animation.
-USER_TO_DEFAULT_FADE_WINDOW = 3
-# The delay in seconds between loss of signal on all contacts and ..doing something about it
-CONTACT_LOS_TIMEOUT = 3
-# the default brightness of the lights when the user is connected
-USER_LIGHT_BRIGHTNESS = 125
-# the default brightness of the Default animation
-DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 255
-DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS = 125
-DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS_RANGE = 50
-
-# Light group addresses
-EEG_LIGHT_GROUP_ADDRESS= 1
-SPOTLIGHT_LIGHT_GROUP_ADDRESS = 8
-
-# How often to print the log message in seconds
-LOG_PRINT_RATE = 0.01
-
-# Correct decimal place for relevant values. XXX Don't change me!
-ROLLING_EEG_WINDOW *= 10
-CONTACT_LOS_TIMEOUT *= 10
-USER_TO_DEFAULT_FADE_WINDOW = USER_TO_DEFAULT_FADE_WINDOW / LIGHT_UPDATE_INTERVAL or 1
 
 def avg(*values):
     return reduce(lambda x, y: x + y, values) / len(values)
@@ -84,13 +57,13 @@ class MuseServer(ServerThread):
         # Listen on port 5001
         ServerThread.__init__(self, 5001)
 
-        self.alpha_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
-        self.beta_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
-        self.delta_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
-        self.gamma_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
-        self.theta_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
+        self.alpha_relative_rolling_avg_generator = MovingAverage(config.ROLLING_EEG_WINDOW)
+        self.beta_relative_rolling_avg_generator = MovingAverage(config.ROLLING_EEG_WINDOW)
+        self.delta_relative_rolling_avg_generator = MovingAverage(config.ROLLING_EEG_WINDOW)
+        self.gamma_relative_rolling_avg_generator = MovingAverage(config.ROLLING_EEG_WINDOW)
+        self.theta_relative_rolling_avg_generator = MovingAverage(config.ROLLING_EEG_WINDOW)
 
-        self.all_contacts_mean = MovingAverageLinear(CONTACT_LOS_TIMEOUT)
+        self.all_contacts_mean = MovingAverageLinear(config.CONTACT_LOS_TIMEOUT)
 
         # EEG signals, connected, touching_forehead
         self.state = MuseState()
@@ -100,22 +73,26 @@ class MuseServer(ServerThread):
         self.lightServerThreadDMX = StoppableThread(self.serveDMXLights)
         self.lightServerThreadDMX.start()
 
-        # self.state.alpha = .32
-        # self.state.beta = .32
-        # self.state.delta = .32
-        # self.state.gamma = .32
-        # self.state.theta = .32
-        # self.connectThread = StoppableThread(self.connectToggle)
-        # self.connectThread.start()
+        self.state.alpha = .32
+        self.state.beta = .32
+        self.state.delta = .32
+        self.state.gamma = .32
+        self.state.theta = .32
+        self.connectThread = StoppableThread(self.connectToggle)
+        self.connectThread.start()
 
-    # def connectToggle(self, thread):
-    #     self.state.connected = 0
-    #     self.state.touching_forehead = 0
-    #     while not thread.stopped():
-    #         self.state.connected = abs(1-self.state.connected)
-    #         self.state.touching_forehead = abs(1-self.state.touching_forehead)
-    #         print "--- set connected and touching_forehead to:", self.state.connected, self.state.touching_forehead
-    #         time.sleep(5)
+    def connectToggle(self, thread):
+        self.state.connected = 1
+        self.state.touching_forehead = 1
+        while not thread.stopped():
+            self.state.alpha = random.random()
+            self.state.beta = random.random()
+            self.state.delta = random.random()
+            self.state.gamma = random.random()
+            self.state.theta = random.random()
+            # self.state.connected = abs(1-self.state.connected)
+            # self.state.touching_forehead = abs(1-self.state.touching_forehead)
+            time.sleep(0.1)
 
     def kill(self):
         # TODO Dim all lights to 0
@@ -124,25 +101,25 @@ class MuseServer(ServerThread):
 
     def serveDMXLights(self, thread):
         dmxClient = DMXClient()
-        dmxClient.createLightGroup(EEG_LIGHT_GROUP_ADDRESS, Orcan2)
-        dmxClient.createLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, PTVWIRE)
+        dmxClient.createLightGroup(config.EEG_LIGHT_GROUP_ADDRESS, Orcan2)
+        dmxClient.createLightGroup(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, PTVWIRE)
         # Create color mixing
         eegMixer = EEGWaveLightMixer(
-            user_to_default_fade_window=USER_TO_DEFAULT_FADE_WINDOW,
-            default_animation_render_rate=DEFAULT_ANIMATION_RENDER_RATE,
-            default_animation_brightness=DEFAULT_COLOR_ANIMATION_BRIGHTNESS,
-            user_light_brightness=USER_LIGHT_BRIGHTNESS)
+            user_to_default_fade_window=config.USER_TO_DEFAULT_FADE_WINDOW,
+            default_animation_render_rate=config.DEFAULT_ANIMATION_RENDER_RATE,
+            default_animation_brightness=config.DEFAULT_COLOR_ANIMATION_BRIGHTNESS,
+            user_light_brightness=config.USER_LIGHT_BRIGHTNESS)
         spotlightMixer = SpotlightLightMixer(
-            user_to_default_fade_window=USER_TO_DEFAULT_FADE_WINDOW,
-            default_animation_render_rate=DEFAULT_ANIMATION_RENDER_RATE,
-            default_animation_brightness=DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS,
-            default_animation_brightness_range=DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS_RANGE
+            user_to_default_fade_window=config.USER_TO_DEFAULT_FADE_WINDOW,
+            default_animation_render_rate=config.DEFAULT_ANIMATION_RENDER_RATE,
+            default_animation_brightness=config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS,
+            default_animation_brightness_range=config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS_RANGE
             )
         # Start color mixing
         eegMixer.startDefaultAnimation()
         spotlightMixer.startDefaultAnimation()
 
-        count = LOG_PRINT_RATE / LIGHT_UPDATE_INTERVAL
+        count = config.LOG_PRINT_RATE / config.LIGHT_UPDATE_INTERVAL
         while not thread.stopped():
             try:
                 # print "Updating state: ALPHA: %f, BETA: %f, DELTA: %f, GAMMA: %f, THETA: %f" % (self.state.alpha, self.state.beta, self.state.delta, self.state.gamma, self.state.theta)
@@ -153,21 +130,21 @@ class MuseServer(ServerThread):
                 spotlightLight = spotlightMixer.getLight()
 
                 # Logging
-                if count >= LOG_PRINT_RATE / LIGHT_UPDATE_INTERVAL:
+                if count >= config.LOG_PRINT_RATE / config.LIGHT_UPDATE_INTERVAL:
                     e = eegLight
                     s = spotlightLight
                     print ""
                     print "User conectivity (binary): %d score: %f raw: %s" % (self.state.connected, self.state.connectionScore, str(self.connections_debug))
                     print "Muse data: ALPHA: %f, BETA: %f, DELTA: %f, GAMMA: %f, THETA: %f" % (self.state.alpha, self.state.beta, self.state.delta, self.state.gamma, self.state.theta)
-                    print "Muse lights (from Mixer), ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (EEG_LIGHT_GROUP_ADDRESS, e.r, e.g, e.b, e.brightness)
-                    print "Spotlight (from Mixer),   ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (SPOTLIGHT_LIGHT_GROUP_ADDRESS, s.r, s.g, s.b, s.brightness)
+                    print "Muse lights (from Mixer), ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (config.EEG_LIGHT_GROUP_ADDRESS, e.r, e.g, e.b, e.brightness)
+                    print "Spotlight (from Mixer),   ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, s.r, s.g, s.b, s.brightness)
                     count = 0
 
-                dmxClient.updateLightGroup(EEG_LIGHT_GROUP_ADDRESS, eegLight)
-                dmxClient.updateLightGroup(SPOTLIGHT_LIGHT_GROUP_ADDRESS, spotlightLight)
+                dmxClient.updateLightGroup(config.EEG_LIGHT_GROUP_ADDRESS, eegLight)
+                dmxClient.updateLightGroup(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, spotlightLight)
 
                 count += 1
-                time.sleep(LIGHT_UPDATE_INTERVAL)
+                time.sleep(config.LIGHT_UPDATE_INTERVAL)
 
             except Exception, err:
                 print "Exception in serveDMXLights: ", err.__class__.__name__, err.message
