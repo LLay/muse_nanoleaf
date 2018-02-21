@@ -1,4 +1,5 @@
 from liblo import *
+from threading import Thread
 
 import sys
 import time
@@ -6,7 +7,7 @@ import random
 import traceback
 import math
 import numpy as np
-from threading import Thread
+
 from LightManager import DMXLightManager
 from Orcan2 import Orcan2
 from PTVWIRE import PTVWIRE
@@ -14,14 +15,12 @@ from LightMixer import EEGWaveLightMixer, SpotlightLightMixer
 from MovingAverage import MovingAverage, MovingAverageLinear
 from StoppableThread import StoppableThread
 from HelperClasses import MuseState
+from Config import LIGHT_UPDATE_INTERVAL
 
-from guppy import hpy
-h = hpy()
+# Debugging memory usage
+# from guppy import hpy
+# h = hpy()
 
-import urllib2
-
-# How often we update the lights. Measured in seconds. Minimum of 0.1 (You can go lower, but we only get data from the muse at 10Hz)
-LIGHT_UPDATE_INTERVAL = 0.01
 # How often we internally render an new frame of the default animation
 DEFAULT_ANIMATION_RENDER_RATE = 0.01
 # Number of second over which we average eeg signals.
@@ -42,7 +41,7 @@ EEG_LIGHT_GROUP_ADDRESS= 1
 SPOTLIGHT_LIGHT_GROUP_ADDRESS = 8
 
 # How often to print the log message in seconds
-LOG_PRINT_RATE = 1
+LOG_PRINT_RATE = 0.01
 
 # Correct decimal place for relevant values. XXX Don't change me!
 ROLLING_EEG_WINDOW *= 10
@@ -97,8 +96,9 @@ class MuseServer(ServerThread):
         self.state = MuseState()
 
         self.connections_debug = (0, 0, 0, 0)
-        self.lightServerThread = None
-        self.startServingLights()
+
+        self.lightServerThreadDMX = StoppableThread(self.serveDMXLights)
+        self.lightServerThreadDMX.start()
 
         # self.state.alpha = .32
         # self.state.beta = .32
@@ -118,12 +118,9 @@ class MuseServer(ServerThread):
     #         time.sleep(5)
 
     def kill(self):
+        # TODO Dim all lights to 0
         self.lightServerThreadDMX.stop()
         # self.connectThread.stop()
-
-    def startServingLights(self):
-        self.lightServerThreadDMX = StoppableThread(self.serveDMXLights)
-        self.lightServerThreadDMX.start()
 
     def serveDMXLights(self, thread):
         dmxClient = DMXClient()

@@ -7,6 +7,7 @@ import sys
 from HelperClasses import MuseState
 from MovingAverage import MovingAverage, MovingAverageLinear
 from StoppableThread import StoppableThread
+from Config import LIGHT_UPDATE_INTERVAL
 
 class LightState:
     def __init__(self):
@@ -129,6 +130,15 @@ class EEGWaveLightMixer(LightMixer):
         # Muse data, and user info
         self.userState = MuseState()
 
+        # Smooth the EEG data to 100fps
+        # 0.1 is the muse update interval
+        smoothingRange = 0.1 / LIGHT_UPDATE_INTERVAL
+        self.alphaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
+        self.betaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
+        self.deltaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
+        self.gammaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
+        self.thetaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
+
         # The data that represents the muse data
         self.userLight = LightState()
         # The current colour of the default animation
@@ -138,6 +148,31 @@ class EEGWaveLightMixer(LightMixer):
         # over 3 seconds to be their color, whe the user disconnects, this color
         # transitions to the default animation color
         self.mixedLight = LightState()
+
+        # We use these as the rolling avarage of the equivalent user values over the last 100 milliseconds.
+        # This way we can get EEG data (and thus the lights animating them) to
+        # run at 100fps, instead of 10
+        self.rollingUserAlpha = 0
+        self.rollingUserBeta = 0
+        self.rollingUserDelta = 0
+        self.rollingUserGamma = 0
+        self.rollingUserTheta = 0
+
+        self.easeEEGValuesThread = StoppableThread(self.easeEEGValues)
+        self.easeEEGValuesThread.start()
+
+    def easeEEGValues(self, thread):
+        while not thread.stopped():
+            self.rollingUserAlpha = self.alphaRollingAvgGenerator.next(self.userState.alpha)
+            self.rollingUserBeta = self.betaRollingAvgGenerator.next(self.userState.beta)
+            self.rollingUserDelta = self.deltaRollingAvgGenerator.next(self.userState.delta)
+            self.rollingUserGamma = self.gammaRollingAvgGenerator.next(self.userState.gamma)
+            self.rollingUserTheta = self.thetaRollingAvgGenerator.next(self.userState.theta)
+            time.sleep(LIGHT_UPDATE_INTERVAL)
+
+    def startEasingEEGValues(self):
+        self.defaultAnimationThread = StoppableThread(self.serveDefaultAnimation, )
+        self.defaultAnimationThread.start()
 
     def startDefaultAnimation(self):
         self.defaultAnimationThread = StoppableThread(self.serveDefaultAnimation, )
@@ -184,7 +219,7 @@ class EEGWaveLightMixer(LightMixer):
 
             # Dim the animation when the user puts on the muse
             # Dim to a minimum of 20% of the original animation brightness
-            # TODO
+            # TODO (touching forehead api is not working. find out why)
             # brightnessModifier = 1-self.touching_forehead_mean
             # brightnessModifier = max(0.2, brightnessModifier)
             # self.defaultLight.brightness = self.default_animation_brightness * (1-self.touching_forehead_mean)
@@ -205,9 +240,9 @@ class EEGWaveLightMixer(LightMixer):
     # interprets user state as a color
     def updateUserLight(self):
         # raw values are between 0 and 1. map it to 0-255
-        self.userLight.r = self.userState.delta * 255
-        self.userLight.g = self.userState.beta * 255
-        self.userLight.b = self.userState.alpha * 255
+        self.userLight.r = self.rollingUserDelta * 255
+        self.userLight.g = self.rollingUserBeta * 255
+        self.userLight.b = self.rollingUserAlpha * 255
         self.userLight.brightness = self.user_light_brightness
 
     # This function can be asynced if need be
@@ -224,3 +259,5 @@ class EEGWaveLightMixer(LightMixer):
     def kill(self):
         if hasattr(self, 'defaultAnimationThread'):
             self.defaultAnimationThread.stop()
+        if hasattr(self, 'defaultAnimationThread'):
+            self.easeEEGValuesThread.stop()
