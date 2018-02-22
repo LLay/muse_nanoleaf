@@ -1,7 +1,7 @@
 from collections import deque
 import math
 
-class MovingAverage(object):
+class MovingAverageExponential(object):
     def __init__(self, size):
         """
         Initialize your data structure here.
@@ -11,19 +11,21 @@ class MovingAverage(object):
         self.__sum = 0
         self.__q = deque([])
         self.__exponential_backoff = .97
-    def next(self, val):
+    def next(self, val, printDebug = False):
         """
         :type val: int
         :rtype: float
         """
         val = val if not math.isnan(val) else 0
-        if len(self.__q) == self.__size:
-            self.__sum -= self.__exponential_backoff**len(self.__q)*self.__q.popleft()
+        if len(self.__q) >= self.__size:
+            subVal = self.__q.popleft()
+            self.__sum -= self.__exponential_backoff**(len(self.__q)-1)*subVal
         self.__sum = (self.__sum*self.__exponential_backoff) + val
         self.__q.append(val)
-        return 1.0 * self.__sum / self.computeBackoffMass(len(self.__q))
+        return max(min(1.0 * self.__sum / self.computeBackoffMass(len(self.__q)),1),0)
+
     def computeBackoffMass(self, n):
-        return (1-self.__exponential_backoff**n)/(1-self.__exponential_backoff)
+        return self.__exponential_backoff*(1-self.__exponential_backoff**(n))/(1-self.__exponential_backoff)
 
 # https://github.com/kamyu104/LeetCode/blob/master/Python/moving-average-from-data-stream.py
 # Not weighted
@@ -37,7 +39,7 @@ class MovingAverageLinear(object):
         self.__sum = 0
         self.__q = deque([])
 
-    def next(self, val):
+    def next(self, val, printDebug = False):
         """
         :type val: int
         :rtype: float
