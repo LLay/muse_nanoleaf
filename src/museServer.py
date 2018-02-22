@@ -186,22 +186,22 @@ class MuseServer(ServerThread):
                 eegMixer.kill()
                 spotlightMixer.kill()
                 sys.exit()
+        self.dimLights(dmxClient)
         dmxClient.kill()
         eegMixer.kill()
         spotlightMixer.kill()
-        self.dimLights(dmxClient)
         sys.exit()
 
     # Dim the light over 2 seconds. Then as a precaution set their colors to black
     def dimLights(self, dmxClient):
         # number of decaseconds to fade
-        fadeCount = 200
+        fadeCount = 2000
 
-        currentColorState = MuseState()
-        currentSpotlightState = MuseState()
+        currentColorState = self.state
+        currentSpotlightState = self.state
         # These initial values are guessed, TODO actually know the current brightness
-        currentColorState.brightness = config.DEFAULT_COLOR_ANIMATION_BRIGHTNESS
-        currentSpotlightState.brightness = config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS
+        currentColorState.brightness = dmxClient.lightManager.getLightGroup(config.EEG_LIGHT_GROUP_ADDRESS).brightness
+        currentSpotlightState.brightness = dmxClient.lightManager.getLightGroup(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS).brightness
         for _ in range(fadeCount):
             currentColorState.brightness -= config.DEFAULT_COLOR_ANIMATION_BRIGHTNESS / float(fadeCount)
             currentSpotlightState.brightness -= config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS / float(fadeCount)
@@ -211,6 +211,8 @@ class MuseServer(ServerThread):
             dmxClient.updateLightGroupBrightness(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, currentSpotlightState)
             print "currentColorState.brightness", currentColorState.brightness
             print "currentSpotlightState.brightness", currentSpotlightState.brightness
+            if currentColorState.brightness == currentSpotlightState.brightness == 0:
+                break
             time.sleep(0.01)
 
     # receive alpha data
