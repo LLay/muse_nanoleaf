@@ -23,6 +23,15 @@ def ease(easingFunc, old_value, new_value, current_increment, final_increment):
     increment = diff * easingFunc(percentComplete)
     return int(old_value - increment)
 
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    return x / np.sum(x, axis=0)
+
+def exponentialSoftmax(rgb):
+    return rgb
+    output = list(softmax(map(lambda x: x**2, rgb)))
+    return output
+
 class LightMixer():
     def updateState(self, user_state):
         raise NotImplementedError('Need to implement updateState')
@@ -238,9 +247,10 @@ class EEGWaveLightMixer(LightMixer):
     # interprets user state as a color
     def updateUserLight(self):
         # raw values are between 0 and 1. map it to 0-255
-        self.userLight.r = self.userState.beta * 255
-        self.userLight.g = self.userState.delta * 255
-        self.userLight.b = self.userState.alpha * 255
+        lightBeta, lightGamma, lightAlpha = exponentialSoftmax([self.userState.beta, self.userState.gamma, self.userState.alpha])
+        self.userLight.r = lightBeta * 255
+        self.userLight.g = lightGamma * 255
+        self.userLight.b = lightAlpha * 255
         self.userLight.brightness = self.user_light_brightness
 
     # This function can be asynced if need be
