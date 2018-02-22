@@ -11,7 +11,7 @@ from LightManager import DMXLightManager
 from Orcan2 import Orcan2
 from PTVWIRE import PTVWIRE
 from LightMixer import EEGWaveLightMixer, SpotlightLightMixer
-from MovingAverage import MovingAverage, MovingAverageLinear
+from MovingAverage import MovingAverageExponential, MovingAverageLinear
 from StoppableThread import StoppableThread
 from HelperClasses import MuseState
 
@@ -31,7 +31,7 @@ USER_TO_DEFAULT_FADE_WINDOW = 3
 # The delay in seconds between loss of signal on all contacts and ..doing something about it
 CONTACT_LOS_TIMEOUT = 3
 # the default brightness of the lights when the user is connected
-USER_LIGHT_BRIGHTNESS = 125
+USER_LIGHT_BRIGHTNESS = 255
 # the default brightness of the Default animation
 DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 255
 DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS = 125
@@ -84,14 +84,14 @@ class MuseServer(ServerThread):
     def __init__(self):
         # Listen on port 5001
         ServerThread.__init__(self, 5001)
+        MovingAverageChoice = MovingAverageExponential
+        self.alpha_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
+        self.beta_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
+        self.delta_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
+        self.gamma_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
+        self.theta_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
 
-        self.alpha_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
-        self.beta_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
-        self.delta_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
-        self.gamma_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
-        self.theta_relative_rolling_avg_generator = MovingAverage(ROLLING_EEG_WINDOW)
-
-        self.all_contacts_mean = MovingAverageLinear(CONTACT_LOS_TIMEOUT)
+        self.all_contacts_mean = MovingAverageChoice(CONTACT_LOS_TIMEOUT)
 
         # EEG signals, connected, touching_forehead
         self.state = MuseState()
@@ -255,7 +255,7 @@ class MuseServer(ServerThread):
         connectionScore = (8 - (sum(map(lambda x: x if x <= 3 else 3, args)) - 4)) / 8.0
         self.state.connectionScore = connectionScore
 
-        if self.all_contacts_mean.next(connectionScore) == 0 and self.state.connected:
+        if self.all_contacts_mean.next(connectionScore, printDebug=True) < 0.05 and self.state.connected:
             # It has been at least CONTACT_LOS_TIMEOUT seconds of total LOS on all contacts
             self.state.connected = 0
             print "LOST CONNECTION"
