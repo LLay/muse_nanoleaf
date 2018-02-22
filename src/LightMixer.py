@@ -247,7 +247,9 @@ class EEGWaveLightMixer(LightMixer):
     # interprets user state as a color
     def updateUserLight(self):
         # raw values are between 0 and 1. map it to 0-255
-        lightBeta, lightGamma, lightAlpha = exponentialSoftmax([self.userState.beta, self.userState.gamma, self.userState.alpha])
+        lightBeta, lightGamma, lightAlpha = exponentialSoftmax([self.rollingUserBeta, self.rollingUserGamma, self.rollingUserAlpha])
+        if np.isnan(lightBeta) or np.isnan(lightGamma) or np.isnan(lightAlpha):
+            return
         self.userLight.r = lightBeta * 255
         self.userLight.g = lightGamma * 255
         self.userLight.b = lightAlpha * 255
