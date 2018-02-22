@@ -3,9 +3,10 @@ import random
 import colorsys
 import time
 import sys
-
+import numpy as np
+from random import shuffle
 from HelperClasses import MuseState
-from MovingAverage import MovingAverage, MovingAverageLinear
+from MovingAverage import MovingAverageExponential, MovingAverageLinear
 from StoppableThread import StoppableThread
 from Config import LIGHT_UPDATE_INTERVAL
 
@@ -195,23 +196,19 @@ class EEGWaveLightMixer(LightMixer):
                 colourArray = [0]*3
                 primaryIndex = random.randint(0, 2)
                 colourArray[primaryIndex] = 255
-                mixingColour = 255
                 remainingIdx = list(set(list(range(len(colourArray)))) - set([primaryIndex]))
-                for idx in remainingIdx:
-                    if idx == remainingIdx[-1]:
-                        #Last idx to fill
-                        colourArray[idx] = mixingColour
-                    colourToAdd = random.randint(0, mixingColour)
-                    mixingColour -= colourToAdd
-                    colourArray[idx] = colourToAdd
+                shuffle(remainingIdx)
+                secondaryIndex = remainingIdx[0]
+                colourToAdd = random.randint(0, 255)
+                colourArray[secondaryIndex] = colourToAdd
                 print("Colour array {}".format(colourArray))
                 r, g, b = colourArray
                 timeToNextColor = random.randint(4/self.default_animation_render_rate,6/self.default_animation_render_rate)
                 currentTime = 0
-
-            self.defaultLight.r = ease(pytweening.easeInOutQuad, r_old, r, currentTime, timeToNextColor)
-            self.defaultLight.g = ease(pytweening.easeInOutQuad, g_old, g, currentTime, timeToNextColor)
-            self.defaultLight.b = ease(pytweening.easeInOutQuad, b_old, b, currentTime, timeToNextColor)
+            easingFunction = pytweening.easeInOutQuad
+            self.defaultLight.r = ease(easingFunction, r_old, r, currentTime, timeToNextColor)
+            self.defaultLight.g = ease(easingFunction, g_old, g, currentTime, timeToNextColor)
+            self.defaultLight.b = ease(easingFunction, b_old, b, currentTime, timeToNextColor)
 
             # Fade in the lights when we start the server
             if oneTimeFadeIn <= 1:
@@ -241,9 +238,9 @@ class EEGWaveLightMixer(LightMixer):
     # interprets user state as a color
     def updateUserLight(self):
         # raw values are between 0 and 1. map it to 0-255
-        self.userLight.r = self.rollingUserDelta * 255
-        self.userLight.g = self.rollingUserBeta * 255
-        self.userLight.b = self.rollingUserAlpha * 255
+        self.userLight.r = self.userState.beta * 255
+        self.userLight.g = self.userState.delta * 255
+        self.userLight.b = self.userState.alpha * 255
         self.userLight.brightness = self.user_light_brightness
 
     # This function can be asynced if need be
