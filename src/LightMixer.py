@@ -28,7 +28,7 @@ def softmax(x):
     return x / np.sum(x, axis=0)
 
 def exponentialSoftmax(rgb):
-    return rgb
+    # return rgb
     output = list(softmax(map(lambda x: x**2, rgb)))
     return output
 
