@@ -38,10 +38,10 @@ class DMXClient():
         self.updateLightGroupColor(address, color)
 
     def updateLightGroupBrightness(self, address, color):
-        self.lightManager.getLightGroup(address).setRGB(int(color.r), int(color.g), int(color.b))
+        self.lightManager.getLightGroup(address).setBrightness(int(color.brightness))
 
     def updateLightGroupColor(self, address, color):
-        self.lightManager.getLightGroup(address).setBrightness(int(color.brightness))
+        self.lightManager.getLightGroup(address).setRGB(int(color.r), int(color.g), int(color.b))
 
     def kill(self):
         self.lightManager.thread.stop()
@@ -72,26 +72,31 @@ class MuseServer(ServerThread):
 
         self.lightServerThreadDMX = StoppableThread(self.serveDMXLights)
         self.lightServerThreadDMX.start()
-
-        # self.state.alpha = .32
-        # self.state.beta = .32
-        # self.state.delta = .32
-        # self.state.gamma = .32
-        # self.state.theta = .32
-        # self.connectThread = StoppableThread(self.connectToggle)
-        # self.connectThread.start()
-
+    #
+    #     self.state.alpha = .32
+    #     self.state.beta = .32
+    #     self.state.delta = .32
+    #     self.state.gamma = .32
+    #     self.state.theta = .32
+    #     self.connectThread = StoppableThread(self.connectToggle)
+    #     self.connectThread.start()
+    #
     # def connectToggle(self, thread):
-    #     self.state.connected = 0
-    #     self.state.touching_forehead = 0
+    #     self.state.connected = 1
+    #     self.state.touching_forehead = 1
     #     while not thread.stopped():
+    #         self.state.alpha = random.random()
+    #         self.state.beta = random.random()
+    #         self.state.delta = random.random()
+    #         self.state.gamma = random.random()
+    #         self.state.theta = random.random()
     #         self.state.connected = abs(1-self.state.connected)
     #         self.state.touching_forehead = abs(1-self.state.touching_forehead)
-    #         print "--- set connected and touching_forehead to:", self.state.connected, self.state.touching_forehead
+    #         print( "toggle")
     #         time.sleep(5)
+    #     sys.exit()
 
     def kill(self):
-        # TODO Dim all lights to 0
         self.lightServerThreadDMX.stop()
         # self.connectThread.stop()
 
@@ -152,7 +157,29 @@ class MuseServer(ServerThread):
         dmxClient.kill()
         eegMixer.kill()
         spotlightMixer.kill()
+        self.dimLights(dmxClient)
         sys.exit()
+
+    # Dim the light over 2 seconds. Then as a precaution set their colors to black
+    def dimLights(self, dmxClient):
+        # number of decaseconds to fade
+        fadeCount = 200
+
+        currentColorState = MuseState()
+        currentSpotlightState = MuseState()
+        # These initial values are guessed, TODO actually know the current brightness
+        currentColorState.brightness = config.DEFAULT_COLOR_ANIMATION_BRIGHTNESS
+        currentSpotlightState.brightness = config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS
+        for _ in range(fadeCount):
+            currentColorState.brightness -= config.DEFAULT_COLOR_ANIMATION_BRIGHTNESS / float(fadeCount)
+            currentSpotlightState.brightness -= config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS / float(fadeCount)
+            currentColorState.brightness = max(0, int(currentColorState.brightness)) # enforce int, no negative
+            currentSpotlightState.brightness = max(0, int(currentSpotlightState.brightness)) # enforce int, no negative
+            dmxClient.updateLightGroupBrightness(config.EEG_LIGHT_GROUP_ADDRESS, currentColorState)
+            dmxClient.updateLightGroupBrightness(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, currentSpotlightState)
+            print "currentColorState.brightness", currentColorState.brightness
+            print "currentSpotlightState.brightness", currentSpotlightState.brightness
+            time.sleep(0.01)
 
     # receive alpha data
     @make_method('/muse/elements/alpha_relative', 'ffff')
