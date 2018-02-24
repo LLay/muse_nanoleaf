@@ -1,0 +1,59 @@
+Notes
+
+Females have higher EEG Power
+
+: Training with beta neurofeedback is associated with increased attention
+308 and arousal, which is thought to explain both lower reaction times and improved sensitivity in
+309 a sustained attention task (Egner and Gruzelier, 2004).
+
+http://www.eneuro.org/content/eneuro/early/2016/11/30/ENEURO.0275-16.2016.full.pdf	
+Calibration:	Normally, when a user puts on the headset, they're told to spend three 20 second intervals thinking as hard as they can about examples of a class, e.g "Animals" we may want to keep track of this baseline.
+Alpha 	"Alpha waves predominantly in posterior region of brain
+Mu waves associated with front"
+Mu waves	Associated with hand motion?
+Power in the rear generally stronger than front	
+Femals have higher EEG power in most bands	
+, increased beta power 305 in older adults may be consistent with work demonstrating an association between poor attention 306 and beta modulation	
+: Training with beta neurofeedback is associated with increased attention 308 and arousal, which is thought to explain both lower reaction times and improved sensitivity in 309 a sustained attention task (Egner and Gruzelier, 2004).	
+Sustained visual attention has also been 310 linked to beta activity (Wr´obel, 2000), underscoring the importance of understanding how beta 311 activity changes with age, and whether these changes are associated with age-related changes in 312 attention.	
+Alpha power is known 317 to be modulated by task demands (Payne et al., 2013), fatigue (Crabbe and Dishman, 2004), and 318 mindfulness meditation (Kerr et al., 2011), all of which are likely at play during use of the Muse	
+. It is also worth saying that correlations 331 between alpha peak frequency and cognitive measures should consider the role of beta, given our 332 earlier discussion of beta power being associated with attentional control.	
+Alpha Assymetry associated with Affect	
+
+Neurofeedback and game experience
+Neurofeedback was implemented with custom-built software and was based on relative spectral
+power (RSP) in alpha (8–12 Hz) and beta (18–30 Hz) bands. The tutorial part of the game was
+used for personal calibration, i.e., to determine the upper and lower thresholds for both bands
+of interest for each individual. Based on the individual thresholds, four types of neurofeedback
+messages were sent to the game: whenever relative alpha power was higher (lower) than the
+
+Simple Delta Strategy
+1. EEG data observation. The screen was split into five color-coded vertical strips, each displaying
+ongoing EEG data of the participants. This served two purposes: to enable assistants
+to adjust the headsets if necessary and for participants to identify their own brain waves
+(Fig 2A). During this phase, participants were encouraged to blink and move their face muscles
+and observe the effects on the ongoing signal. The intention was to convince the participants
+that the displays were truly driven by their brain signals in real time. 
+
+
+Individual thresholds were calculated from the mean alpha and beta relative power during
+the tutorial: lower and upper alpha (beta) thresholds were set as 0.9 (1.0) and 1.1 (1.2) of the
+mean alpha (beta) power. The remainder of the game was driven using the customized
+thresholds.
+
+Epoching. We defined 9 conditions in accordance with the game timeline. The condition
+names and durations were: Tutorial-relax (20 s), Tutorial-concentrates (20 s), Solo1-relax (20
+s), Solo1-concentrate (30 s), Solo2-relax (20 s), Solo2-concentrate (30 s), Group-guided-relax
+(20 s), Group-guided-concentrate (30 s), and Group-freestyle (90 s). The freestyle condition
+was not analyzed since it was distinctly longer and different than all other conditions. Also,
+because some conditions were 30 s long, we always utilized only the first 20 s of each condition
+segment. Condition specific segments were resampled to 256 Hz. For subsequent data analysis
+we split the long segments into a series of overlapping 1s epochs, with 100 ms overlaps. For 20
+s of continuous data resampled to 256 Hz this procedure resulted in 211 epochs. Temporal
+mean was subtracted from each epoch.
+
+e. Concentration training elicited a particularly
+salient effect of relative spectral power increase in beta range and decrease in frequencies < 8
+Hz. Th
+
+Cortical Theta

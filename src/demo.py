@@ -12,10 +12,11 @@ if __name__ == "__main__":
 	try:
 		light = Orcan2()
 		light.setMode(Mode.DMX_CONTROL)
-		light.setBrightness(255)
-		light.setFunctionSpeed(255)
-		light.setRGB(255, 255, 0)
-		lightMan = Orcan2LightManager(lightAddress=1,light=light,tickInterval = .001)
+		light.setStrobeIntensity(0)
+		light.setBrightness(75)
+		light.setFunctionSpeed(100)
+		light.setRGB(130, 45, 0)
+		lightMan = DMXLightManager(lightAddress=1,light=light,tickInterval = .001)
 		thread = StoppableThread(target = lightMan.run)
 		thread.start()
 		while(1):

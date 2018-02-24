@@ -12,7 +12,7 @@ from LightManager import DMXLightManager
 from Orcan2 import Orcan2
 from PTVWIRE import PTVWIRE
 from LightMixer import EEGWaveLightMixer, SpotlightLightMixer
-from MovingAverage import MovingAverage, MovingAverageLinear
+from MovingAverage import MovingAverageExponential, MovingAverageLinear
 from StoppableThread import StoppableThread
 from HelperClasses import MuseState
 import Config as config
@@ -20,6 +20,37 @@ import Config as config
 # Debugging memory usage
 # from guppy import hpy
 # h = hpy()
+
+import urllib2
+
+# How often we update the lights. Measured in seconds. Minimum of 0.1 (You can go lower, but we only get data from the muse at 10Hz)
+LIGHT_UPDATE_INTERVAL = 0.01
+# How often we internally render an new frame of the default animation
+DEFAULT_ANIMATION_RENDER_RATE = 0.01
+# Number of second over which we average eeg signals.
+ROLLING_EEG_WINDOW = 6
+# Number of second over which fade between user input and the default light animation.
+USER_TO_DEFAULT_FADE_WINDOW = 3
+# The delay in seconds between loss of signal on all contacts and ..doing something about it
+CONTACT_LOS_TIMEOUT = 3
+# the default brightness of the lights when the user is connected
+USER_LIGHT_BRIGHTNESS = 125
+# the default brightness of the Default animation
+DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 125
+DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS = 125
+DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS_RANGE = 50
+
+# Light group addresses
+EEG_LIGHT_GROUP_ADDRESS= 1
+SPOTLIGHT_LIGHT_GROUP_ADDRESS = 8
+
+# How often to print the log message in seconds
+LOG_PRINT_RATE = 1
+
+# Correct decimal place for relevant values. XXX Don't change me!
+ROLLING_EEG_WINDOW *= 10
+CONTACT_LOS_TIMEOUT *= 10
+USER_TO_DEFAULT_FADE_WINDOW = USER_TO_DEFAULT_FADE_WINDOW / LIGHT_UPDATE_INTERVAL or 1
 
 def avg(*values):
     return reduce(lambda x, y: x + y, values) / len(values)
@@ -42,14 +73,14 @@ class DMXClient():
         self.lightManager.createLightGroup(address, lightClass)
 
     def updateLightGroup(self, address, color):
-        self.updateLightGroupBrightness(address, color)
-        self.updateLightGroupColor(address, color)
+        self.updateLightGroupBrightness(address, color.brightness)
+        self.updateLightGroupColor(address, color.r, color.g, color.b)
 
-    def updateLightGroupBrightness(self, address, color):
-        self.lightManager.getLightGroup(address).setBrightness(int(color.brightness))
+    def updateLightGroupBrightness(self, address, brightness):
+        self.lightManager.getLightGroup(address).setBrightness(int(brightness))
 
-    def updateLightGroupColor(self, address, color):
-        self.lightManager.getLightGroup(address).setRGB(int(color.r), int(color.g), int(color.b))
+    def updateLightGroupColor(self, address, r,g,b):
+        self.lightManager.getLightGroup(address).setRGB(int(r), int(g), int(b))
 
     def kill(self):
         self.lightManager.thread.stop()
@@ -59,19 +90,22 @@ class NodeLeafClient():
     pass
 
 # MuseServer
+receivingMessages = True
+timeSinceLastSecond = 1
 class MuseServer(ServerThread):
 
     def __init__(self):
         # Listen on port 5001
         ServerThread.__init__(self, 5001)
+        MovingAverageChoice = MovingAverageExponential
+        self.alpha_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
+        self.beta_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
+        self.delta_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
+        self.gamma_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
+        self.theta_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
 
-        self.alpha_relative_rolling_avg_generator = MovingAverage(config.ROLLING_EEG_WINDOW)
-        self.beta_relative_rolling_avg_generator = MovingAverage(config.ROLLING_EEG_WINDOW)
-        self.delta_relative_rolling_avg_generator = MovingAverage(config.ROLLING_EEG_WINDOW)
-        self.gamma_relative_rolling_avg_generator = MovingAverage(config.ROLLING_EEG_WINDOW)
-        self.theta_relative_rolling_avg_generator = MovingAverage(config.ROLLING_EEG_WINDOW)
+        self.all_contacts_mean = MovingAverageChoice(CONTACT_LOS_TIMEOUT)
 
-        self.all_contacts_mean = MovingAverageLinear(config.CONTACT_LOS_TIMEOUT)
 
         # EEG signals, connected, touching_forehead
         self.state = MuseState()
@@ -130,6 +164,7 @@ class MuseServer(ServerThread):
 
 
     def serveDMXLights(self, thread):
+        global receivingMessages
         dmxClient = DMXClient()
         dmxClient.createLightGroup(config.EEG_LIGHT_GROUP_ADDRESS, Orcan2)
         dmxClient.createLightGroup(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, PTVWIRE)
@@ -164,6 +199,9 @@ class MuseServer(ServerThread):
 
                 # Logging
                 if count >= config.LOG_PRINT_RATE / config.LIGHT_UPDATE_INTERVAL:
+                    if receivingMessages == False:
+                        self.state.connected = self.state.connected / 2 
+                    receivingMessages = False
                     e = eegLight
                     s = spotlightLight
                     print ""
@@ -186,48 +224,52 @@ class MuseServer(ServerThread):
                 eegMixer.kill()
                 spotlightMixer.kill()
                 sys.exit()
+        self.dimLights(dmxClient)
         dmxClient.kill()
         eegMixer.kill()
         spotlightMixer.kill()
-        self.dimLights(dmxClient)
         sys.exit()
 
     # Dim the light over 2 seconds. Then as a precaution set their colors to black
     def dimLights(self, dmxClient):
         # number of decaseconds to fade
-        fadeCount = 200
+        fadeCount = 2000
 
-        currentColorState = MuseState()
-        currentSpotlightState = MuseState()
-        # These initial values are guessed, TODO actually know the current brightness
-        currentColorState.brightness = config.DEFAULT_COLOR_ANIMATION_BRIGHTNESS
-        currentSpotlightState.brightness = config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS
+        startEEGBright = dmxClient.lightManager.getLightGroup(config.EEG_LIGHT_GROUP_ADDRESS).brightness
+        curEEGBright = startEEGBright
+        startSpotBright = dmxClient.lightManager.getLightGroup(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS).brightness
+        curSpotBright = startSpotBright
+
         for _ in range(fadeCount):
-            currentColorState.brightness -= config.DEFAULT_COLOR_ANIMATION_BRIGHTNESS / float(fadeCount)
-            currentSpotlightState.brightness -= config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS / float(fadeCount)
-            currentColorState.brightness = max(0, int(currentColorState.brightness)) # enforce int, no negative
-            currentSpotlightState.brightness = max(0, int(currentSpotlightState.brightness)) # enforce int, no negative
-            dmxClient.updateLightGroupBrightness(config.EEG_LIGHT_GROUP_ADDRESS, currentColorState)
-            dmxClient.updateLightGroupBrightness(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, currentSpotlightState)
-            print "currentColorState.brightness", currentColorState.brightness
-            print "currentSpotlightState.brightness", currentSpotlightState.brightness
+            print "start bright", startEEGBright
+            curEEGBright -= config.USER_LIGHT_BRIGHTNESS / float(fadeCount)
+            curEEGBright = max(0,int(curEEGBright))
+            dmxClient.updateLightGroupBrightness(config.EEG_LIGHT_GROUP_ADDRESS,curEEGBright)
+            curSpotBright -= config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS / float(fadeCount)
+            curSpotBright = max(0, int(curSpotBright))
+            dmxClient.updateLightGroupBrightness(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, curSpotBright)
+            print "curBright", curEEGBright
+            if curEEGBright == curSpotBright ==  0:
+                break
             time.sleep(0.01)
 
     # receive alpha data
     @make_method('/muse/elements/alpha_relative', 'ffff')
     def alpha_relative_callback(self, path, *args):
-        weights = np.array([2, 0, 0, 2])
+        weights = np.array([1,1])
         values = np.array(args[0])
-        alphaWeightedAndNormalized = self.weighter(values, weights, normalizationMin = .1, normalizationMax=.5)
+        values = np.array(values[np.argsort(values)[-2:]])
+        alphaWeightedAndNormalized = self.weighter(values, weights, normalizationMin = .05, normalizationMax=.5)
         x = self.alpha_relative_rolling_avg_generator.next(alphaWeightedAndNormalized)
         self.state.alpha = x if not math.isnan(x) else 0
 
     # receive beta data
     @make_method('/muse/elements/beta_relative', 'ffff')
     def beta_relative_callback(self, path, *args):
-        weights = np.array([0, 2, 2, 0])
-        values = args[0]
-        betaWeightedAndNormalized = self.weighter(values, weights, normalizationMin=.15, normalizationMax=.6)
+        weights = np.array([1,1])
+        values = np.array(args[0])
+        values = np.array(values[np.argsort(values)[-2:]])
+        betaWeightedAndNormalized = self.weighter(values, weights, normalizationMin=.05, normalizationMax=.5)
         x = self.beta_relative_rolling_avg_generator.next(betaWeightedAndNormalized)
         self.state.beta = x if not math.isnan(x) else 0
 
@@ -270,6 +312,8 @@ class MuseServer(ServerThread):
 
     @make_method('/muse/elements/touching_forehead', 'i')
     def horseshoe_callback(self, path, arg):
+        global receivingMessages
+        receivingMessages = True
         # TODO apparently this callback never gets called
         x = int(arg) if not math.isnan(arg[0]) else 0
         self.state.touching_forehead = x
@@ -280,11 +324,13 @@ class MuseServer(ServerThread):
     # each contact 1 = good, 2 = ok, >=3 bad
     @make_method('/muse/elements/horseshoe', 'ffff')
     def horseshoe_callback(self, path, args):
+        global receivingMessages
+        receivingMessages = True
         # A score between 0 and 1 of how good the connections of the contacts are
         connectionScore = (8 - (sum(map(lambda x: x if x <= 3 else 3, args)) - 4)) / 8.0
         self.state.connectionScore = connectionScore
 
-        if self.all_contacts_mean.next(connectionScore) == 0 and self.state.connected:
+        if self.all_contacts_mean.next(connectionScore, printDebug=True) < 0.05 and self.state.connected:
             # It has been at least CONTACT_LOS_TIMEOUT seconds of total LOS on all contacts
             self.state.connected = 0
             print "LOST CONNECTION"

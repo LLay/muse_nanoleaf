@@ -3,9 +3,10 @@ import random
 import colorsys
 import time
 import sys
-
+import numpy as np
+from random import shuffle
 from HelperClasses import MuseState
-from MovingAverage import MovingAverage, MovingAverageLinear
+from MovingAverage import MovingAverageExponential, MovingAverageLinear
 from StoppableThread import StoppableThread
 from Config import LIGHT_UPDATE_INTERVAL
 
@@ -21,6 +22,15 @@ def ease(easingFunc, old_value, new_value, current_increment, final_increment):
     diff = (old_value - new_value)
     increment = diff * easingFunc(percentComplete)
     return int(old_value - increment)
+
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    return x / np.sum(x, axis=0)
+
+def exponentialSoftmax(rgb):
+    # return rgb
+    output = list(softmax(map(lambda x: x**2, rgb)))
+    return output
 
 class LightMixer():
     def updateState(self, user_state):
@@ -133,11 +143,12 @@ class EEGWaveLightMixer(LightMixer):
         # Smooth the EEG data to 100fps
         # 0.1 is the muse update interval
         smoothingRange = 0.1 / LIGHT_UPDATE_INTERVAL
-        self.alphaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
-        self.betaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
-        self.deltaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
-        self.gammaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
-        self.thetaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
+        movingAverageChoice = MovingAverageExponential#MovingAverageLinear
+        self.alphaRollingAvgGenerator = movingAverageChoice(smoothingRange)
+        self.betaRollingAvgGenerator = movingAverageChoice(smoothingRange)
+        self.deltaRollingAvgGenerator = movingAverageChoice(smoothingRange)
+        self.gammaRollingAvgGenerator = movingAverageChoice(smoothingRange)
+        self.thetaRollingAvgGenerator = movingAverageChoice(smoothingRange)
 
         # The data that represents the user light
         self.userLight = LightState()
@@ -195,24 +206,20 @@ class EEGWaveLightMixer(LightMixer):
                 colourArray = [0]*3
                 primaryIndex = random.randint(0, 2)
                 colourArray[primaryIndex] = 255
-                mixingColour = 255
                 remainingIdx = list(set(list(range(len(colourArray)))) - set([primaryIndex]))
-                for idx in remainingIdx:
-                    if idx == remainingIdx[-1]:
-                        #Last idx to fill
-                        colourArray[idx] = mixingColour
-                    colourToAdd = random.randint(0, mixingColour)
-                    mixingColour -= colourToAdd
-                    colourArray[idx] = colourToAdd
+                shuffle(remainingIdx)
+                secondaryIndex = remainingIdx[0]
+                colourToAdd = random.randint(0, 255)
+                colourArray[secondaryIndex] = colourToAdd
                 print("Colour array {}".format(colourArray))
                 r, g, b = colourArray
                 timeToNextColor = random.randint(4/self.default_animation_render_rate,6/self.default_animation_render_rate)
                 currentTime = 0
-
-            self.defaultLight.r = ease(pytweening.easeInOutQuad, r_old, r, currentTime, timeToNextColor)
-            self.defaultLight.g = ease(pytweening.easeInOutQuad, g_old, g, currentTime, timeToNextColor)
-            self.defaultLight.b = ease(pytweening.easeInOutQuad, b_old, b, currentTime, timeToNextColor)
-
+            easingFunction = pytweening.easeInOutQuad
+            self.defaultLight.r = ease(easingFunction, r_old, r, currentTime, timeToNextColor)
+            self.defaultLight.g = ease(easingFunction, g_old, g, currentTime, timeToNextColor)
+            self.defaultLight.b = ease(easingFunction, b_old, b, currentTime, timeToNextColor)
+            
             # Fade in the lights when we start the server
             if oneTimeFadeIn <= 1:
                 # Fade lights in over 2 second
@@ -241,9 +248,12 @@ class EEGWaveLightMixer(LightMixer):
     # interprets user state as a color
     def updateUserLight(self):
         # raw values are between 0 and 1. map it to 0-255
-        self.userLight.r = self.rollingUserDelta * 255
-        self.userLight.g = self.rollingUserBeta * 255
-        self.userLight.b = self.rollingUserAlpha * 255
+        lightBeta, lightGamma, lightAlpha = exponentialSoftmax([self.rollingUserBeta, self.rollingUserGamma, self.rollingUserAlpha])
+        if np.isnan(lightBeta) or np.isnan(lightGamma) or np.isnan(lightAlpha):
+            return
+        self.userLight.r = lightBeta * 255
+        self.userLight.g = lightGamma * 255
+        self.userLight.b = lightAlpha * 255
         self.userLight.brightness = self.user_light_brightness
 
     # This function can be asynced if need be
