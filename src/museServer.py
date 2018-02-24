@@ -82,6 +82,8 @@ class NodeLeafClient():
     pass
 
 # MuseServer
+receivingMessages = True
+timeSinceLastSecond = 1
 class MuseServer(ServerThread):
 
     def __init__(self):
@@ -133,6 +135,7 @@ class MuseServer(ServerThread):
         # self.connectThread.stop()
 
     def serveDMXLights(self, thread):
+        global receivingMessages
         dmxClient = DMXClient()
         dmxClient.createLightGroup(config.EEG_LIGHT_GROUP_ADDRESS, Orcan2)
         dmxClient.createLightGroup(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, PTVWIRE)
@@ -164,6 +167,9 @@ class MuseServer(ServerThread):
 
                 # Logging
                 if count >= config.LOG_PRINT_RATE / config.LIGHT_UPDATE_INTERVAL:
+                    if receivingMessages == False:
+                        self.state.connected = self.state.connected / 2 
+                    receivingMessages = False
                     e = eegLight
                     s = spotlightLight
                     print ""
@@ -274,6 +280,8 @@ class MuseServer(ServerThread):
 
     @make_method('/muse/elements/touching_forehead', 'i')
     def horseshoe_callback(self, path, arg):
+        global receivingMessages
+        receivingMessages = True
         # TODO apparently this callback never gets called
         x = int(arg) if not math.isnan(arg[0]) else 0
         self.state.touching_forehead = x
@@ -284,6 +292,8 @@ class MuseServer(ServerThread):
     # each contact 1 = good, 2 = ok, >=3 bad
     @make_method('/muse/elements/horseshoe', 'ffff')
     def horseshoe_callback(self, path, args):
+        global receivingMessages
+        receivingMessages = True
         # A score between 0 and 1 of how good the connections of the contacts are
         connectionScore = (8 - (sum(map(lambda x: x if x <= 3 else 3, args)) - 4)) / 8.0
         self.state.connectionScore = connectionScore
