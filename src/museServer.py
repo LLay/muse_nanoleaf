@@ -65,14 +65,14 @@ class DMXClient():
         self.lightManager.createLightGroup(address, lightClass)
 
     def updateLightGroup(self, address, color):
-        self.updateLightGroupBrightness(address, color)
-        self.updateLightGroupColor(address, color)
+        self.updateLightGroupBrightness(address, color.brightness)
+        self.updateLightGroupColor(address, color.r, color.g, color.b)
 
-    def updateLightGroupBrightness(self, address, color):
-        self.lightManager.getLightGroup(address).setBrightness(int(color.brightness))
+    def updateLightGroupBrightness(self, address, brightness):
+        self.lightManager.getLightGroup(address).setBrightness(int(brightness))
 
-    def updateLightGroupColor(self, address, color):
-        self.lightManager.getLightGroup(address).setRGB(int(color.r), int(color.g), int(color.b))
+    def updateLightGroupColor(self, address, r,g,b):
+        self.lightManager.getLightGroup(address).setRGB(int(r), int(g), int(b))
 
     def kill(self):
         self.lightManager.thread.stop()
@@ -203,21 +203,21 @@ class MuseServer(ServerThread):
         # number of decaseconds to fade
         fadeCount = 2000
 
-        currentColorState = self.state
-        currentSpotlightState = self.state
-        # These initial values are guessed, TODO actually know the current brightness
-        currentColorState.brightness = dmxClient.lightManager.getLightGroup(config.EEG_LIGHT_GROUP_ADDRESS).brightness
-        currentSpotlightState.brightness = dmxClient.lightManager.getLightGroup(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS).brightness
+        startEEGBright = dmxClient.lightManager.getLightGroup(config.EEG_LIGHT_GROUP_ADDRESS).brightness
+        curEEGBright = startEEGBright
+        startSpotBright = dmxClient.lightManager.getLightGroup(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS).brightness
+        curSpotBright = startSpotBright
+
         for _ in range(fadeCount):
-            currentColorState.brightness -= config.DEFAULT_COLOR_ANIMATION_BRIGHTNESS / float(fadeCount)
-            currentSpotlightState.brightness -= config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS / float(fadeCount)
-            currentColorState.brightness = max(0, int(currentColorState.brightness)) # enforce int, no negative
-            currentSpotlightState.brightness = max(0, int(currentSpotlightState.brightness)) # enforce int, no negative
-            dmxClient.updateLightGroupBrightness(config.EEG_LIGHT_GROUP_ADDRESS, currentColorState)
-            dmxClient.updateLightGroupBrightness(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, currentSpotlightState)
-            print "currentColorState.brightness", currentColorState.brightness
-            print "currentSpotlightState.brightness", currentSpotlightState.brightness
-            if currentColorState.brightness == currentSpotlightState.brightness == 0:
+            print "start bright", startEEGBright
+            curEEGBright -= config.USER_LIGHT_BRIGHTNESS / float(fadeCount)
+            curEEGBright = max(0,int(curEEGBright))
+            dmxClient.updateLightGroupBrightness(config.EEG_LIGHT_GROUP_ADDRESS,curEEGBright)
+            curSpotBright -= config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS / float(fadeCount)
+            curSpotBright = max(0, int(curSpotBright))
+            dmxClient.updateLightGroupBrightness(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, curSpotBright)
+            print "curBright", curEEGBright
+            if curEEGBright == curSpotBright ==  0:
                 break
             time.sleep(0.01)
 
