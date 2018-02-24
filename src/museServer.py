@@ -8,7 +8,7 @@ import traceback
 import math
 import numpy as np
 
-from LightManager import DMXLightManager
+from LightManager import DMXLightManager, NanoleafLightManager
 from Orcan2 import Orcan2
 from PTVWIRE import PTVWIRE
 from LightMixer import EEGWaveLightMixer, SpotlightLightMixer
@@ -106,7 +106,6 @@ class MuseServer(ServerThread):
 
         self.all_contacts_mean = MovingAverageChoice(CONTACT_LOS_TIMEOUT)
 
-
         # EEG signals, connected, touching_forehead
         self.state = MuseState()
 
@@ -118,29 +117,29 @@ class MuseServer(ServerThread):
         self.lightServerThreadNanoleaf = StoppableThread(self.serveNanoleafLights)
         self.lightServerThreadNanoleaf.start()
         self.globalMixer = None
-    #
-    #     self.state.alpha = .32
-    #     self.state.beta = .32
-    #     self.state.delta = .32
-    #     self.state.gamma = .32
-    #     self.state.theta = .32
-    #     self.connectThread = StoppableThread(self.connectToggle)
-    #     self.connectThread.start()
-    #
-    # def connectToggle(self, thread):
-    #     self.state.connected = 1
-    #     self.state.touching_forehead = 1
-    #     while not thread.stopped():
-    #         self.state.alpha = random.random()
-    #         self.state.beta = random.random()
-    #         self.state.delta = random.random()
-    #         self.state.gamma = random.random()
-    #         self.state.theta = random.random()
-    #         self.state.connected = abs(1-self.state.connected)
-    #         self.state.touching_forehead = abs(1-self.state.touching_forehead)
-    #         print( "toggle")
-    #         time.sleep(5)
-    #     sys.exit()
+
+        self.state.alpha = .32
+        self.state.beta = .32
+        self.state.delta = .32
+        self.state.gamma = .32
+        self.state.theta = .32
+        self.connectThread = StoppableThread(self.connectToggle)
+        self.connectThread.start()
+
+    def connectToggle(self, thread):
+        self.state.connected = 1
+        self.state.touching_forehead = 1
+        while not thread.stopped():
+            self.state.alpha = random.random()
+            self.state.beta = random.random()
+            self.state.delta = random.random()
+            self.state.gamma = random.random()
+            self.state.theta = random.random()
+            self.state.connected = abs(1-self.state.connected)
+            self.state.touching_forehead = abs(1-self.state.touching_forehead)
+            print( "connected", self.state.connected)
+            time.sleep(10)
+        sys.exit()
 
     def kill(self):
         self.lightServerThreadDMX.stop()
@@ -153,13 +152,15 @@ class MuseServer(ServerThread):
         while not thread.stopped():
             try:
                 light = self.globalMixer.getLight()
-                nanoleafClient.updateLights(self.light.r, self.light.g, self.light.b, self.light.brightness)
-
+                nanoleafClient.updateLights(light.r, light.g, light.b, light.brightness)
+                # XXX Debug
+                print "Nanoleaf lights (from Mixer), COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (e.r, e.g, e.b, e.brightness)
                 time.sleep(config.NANOLEAF_LIGHT_UPDATE_INTERVAL)
 
             except Exception, err:
                 print "Exception in serveNanoleafLights: ", err.__class__.__name__, err.message
                 sys.exit()
+        print "EXITING serveNanoleafLights"
         sys.exit()
 
 
@@ -190,7 +191,6 @@ class MuseServer(ServerThread):
         count = config.LOG_PRINT_RATE / config.LIGHT_UPDATE_INTERVAL
         while not thread.stopped():
             try:
-                # print "Updating state: ALPHA: %f, BETA: %f, DELTA: %f, GAMMA: %f, THETA: %f" % (self.state.alpha, self.state.beta, self.state.delta, self.state.gamma, self.state.theta)
                 eegMixer.updateState(self.state)
                 spotlightMixer.updateState(self.state)
 
@@ -200,7 +200,7 @@ class MuseServer(ServerThread):
                 # Logging
                 if count >= config.LOG_PRINT_RATE / config.LIGHT_UPDATE_INTERVAL:
                     if receivingMessages == False:
-                        self.state.connected = self.state.connected / 2 
+                        self.state.connected = self.state.connected / 2
                     receivingMessages = False
                     e = eegLight
                     s = spotlightLight
@@ -241,14 +241,14 @@ class MuseServer(ServerThread):
         curSpotBright = startSpotBright
 
         for _ in range(fadeCount):
-            print "start bright", startEEGBright
+            # print "start bright", startEEGBright
             curEEGBright -= config.USER_LIGHT_BRIGHTNESS / float(fadeCount)
             curEEGBright = max(0,int(curEEGBright))
             dmxClient.updateLightGroupBrightness(config.EEG_LIGHT_GROUP_ADDRESS,curEEGBright)
             curSpotBright -= config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS / float(fadeCount)
             curSpotBright = max(0, int(curSpotBright))
             dmxClient.updateLightGroupBrightness(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, curSpotBright)
-            print "curBright", curEEGBright
+            # print "curBright", curEEGBright
             if curEEGBright == curSpotBright ==  0:
                 break
             time.sleep(0.01)

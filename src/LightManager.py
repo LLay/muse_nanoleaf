@@ -9,8 +9,8 @@ import colorsys
 sys.path.insert(0, '/Users/lay/workspace/dmx-lib/muse_controller/nanoleafpy2')
 from nanoleaf import setup, Aurora
 
-rgbToHSB(r,g,b):
-    h,s,v = colorsys.rgb_to_hsv(r,g,b)
+# rgbToHSB(r,g,b):
+#     h,s,v = colorsys.rgb_to_hsv(r,g,b)
     # h,l,s = colorsys.rgb_to_hls(r,g,b)
 
 ANIMATION_ID = "myanimation"
@@ -42,20 +42,19 @@ class NanoleafLightManager:
         self.auroras = {}
         for aurora in self.auroras:
             aurora['panelIDs'] = [x.panelId for x in self.aurora.panel_positions()]
-
         print "Finished Initiating Aurora Metadata..."
 
         print "Turning on Auroras"
         for aurora in self.auroras:
             aurora['aurora'].on = True
-        my_aurora.effect = ANIMATION_ID
+            # aurora['aurora'].effect = ANIMATION_ID
         print "Finished Turning on Auroras"
 
         print "Setting lights to white"
         self.updateLights(255, 255, 255, 100)
         print "Finished setting lights to white"
 
-    def updateLights(r, g, b, brightness):
+    def updateLights(self, r, g, b, brightness):
         # h,s,b = colorsys.rgb_to_hsv(r,g,b) # Assuming value == brightness
 
         # TODO Modify RGB values by brightness. Experimental:
@@ -67,7 +66,7 @@ class NanoleafLightManager:
         #  - set the god damn color
         for aurora in self.auroras:
             effect = self.getStaticEffect(aurora, r,g,b)
-            aurora.effect_set_raw(effect)
+            aurora['aurora'].effect_set_raw(effect)
 
         # CASE 2 - sample at once every 2 seconds. Ensure aurora is all one color within 2 seconds so that we can transition smoothly
         # get current lights state/color
@@ -83,7 +82,10 @@ class NanoleafLightManager:
         # animData is of the form: <numPanels> <panelId0> <numFrames0> <RGBWT01> <RGBWT02> ... <RGBWT0n(0)> <panelId1> <numFrames1> <RGBWT11> <RGBWT12> ... <RGBWT1n(1)> ... ... <panelIdN> <numFramesN> <RGBWTN1> <RGBWTN2> ... <RGBWTNn(N)>
         animData = "%d " % (len(panelIDs))
         for panelID in panelIDs:
-            animData += "%d, %d, %d, %d, %d, 0, %d " % (panelID, numFrames, r, g, b, 0, transitionTime)
+            animData += "%d, %d, %d, %d, %d, 0, %d " % (panelID, numFrames, r, g, b, transitionTime)
+
+        # # XXX Debug
+        # print "animData", animData
 
         return {
             "command": "add",
