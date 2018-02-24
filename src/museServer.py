@@ -34,9 +34,9 @@ USER_TO_DEFAULT_FADE_WINDOW = 3
 # The delay in seconds between loss of signal on all contacts and ..doing something about it
 CONTACT_LOS_TIMEOUT = 3
 # the default brightness of the lights when the user is connected
-USER_LIGHT_BRIGHTNESS = 255
+USER_LIGHT_BRIGHTNESS = 125
 # the default brightness of the Default animation
-DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 255
+DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 125
 DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS = 125
 DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS_RANGE = 50
 
@@ -218,18 +218,20 @@ class MuseServer(ServerThread):
     # receive alpha data
     @make_method('/muse/elements/alpha_relative', 'ffff')
     def alpha_relative_callback(self, path, *args):
-        weights = np.array([2, 0, 0, 2])
+        weights = np.array([1,1])
         values = np.array(args[0])
-        alphaWeightedAndNormalized = self.weighter(values, weights, normalizationMin = .1, normalizationMax=.5)
+        values = np.array(values[np.argsort(values)[-2:]])
+        alphaWeightedAndNormalized = self.weighter(values, weights, normalizationMin = .05, normalizationMax=.5)
         x = self.alpha_relative_rolling_avg_generator.next(alphaWeightedAndNormalized)
         self.state.alpha = x if not math.isnan(x) else 0
 
     # receive beta data
     @make_method('/muse/elements/beta_relative', 'ffff')
     def beta_relative_callback(self, path, *args):
-        weights = np.array([0, 2, 2, 0])
-        values = args[0]
-        betaWeightedAndNormalized = self.weighter(values, weights, normalizationMin=.15, normalizationMax=.6)
+        weights = np.array([1,1])
+        values = np.array(args[0])
+        values = np.array(values[np.argsort(values)[-2:]])
+        betaWeightedAndNormalized = self.weighter(values, weights, normalizationMin=.05, normalizationMax=.5)
         x = self.beta_relative_rolling_avg_generator.next(betaWeightedAndNormalized)
         self.state.beta = x if not math.isnan(x) else 0
 

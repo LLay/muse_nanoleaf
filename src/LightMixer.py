@@ -143,11 +143,12 @@ class EEGWaveLightMixer(LightMixer):
         # Smooth the EEG data to 100fps
         # 0.1 is the muse update interval
         smoothingRange = 0.1 / LIGHT_UPDATE_INTERVAL
-        self.alphaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
-        self.betaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
-        self.deltaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
-        self.gammaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
-        self.thetaRollingAvgGenerator = MovingAverageLinear(smoothingRange)
+        movingAverageChoice = MovingAverageExponential#MovingAverageLinear
+        self.alphaRollingAvgGenerator = movingAverageChoice(smoothingRange)
+        self.betaRollingAvgGenerator = movingAverageChoice(smoothingRange)
+        self.deltaRollingAvgGenerator = movingAverageChoice(smoothingRange)
+        self.gammaRollingAvgGenerator = movingAverageChoice(smoothingRange)
+        self.thetaRollingAvgGenerator = movingAverageChoice(smoothingRange)
 
         # The data that represents the user light
         self.userLight = LightState()
@@ -218,7 +219,7 @@ class EEGWaveLightMixer(LightMixer):
             self.defaultLight.r = ease(easingFunction, r_old, r, currentTime, timeToNextColor)
             self.defaultLight.g = ease(easingFunction, g_old, g, currentTime, timeToNextColor)
             self.defaultLight.b = ease(easingFunction, b_old, b, currentTime, timeToNextColor)
-
+            
             # Fade in the lights when we start the server
             if oneTimeFadeIn <= 1:
                 # Fade lights in over 2 second
