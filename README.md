@@ -4,9 +4,11 @@ A tool to visualize eeg waves captured by a Muse headband on a network of DMX li
 ### Dependencies
 - [museSDK](http://developer.choosemuse.com/sdk/ios) (which includes [museIO](http://developer.choosemuse.com/tools/museio))
 - [pyliblo](http://das.nasophon.de/pyliblo/)
+- [requests](https://pypi.python.org/pypi/requests/2.7.0)
 - [our fork of OLA](https://github.com/Etragas/ola) ⚠️ (Only for the brave of heart)
 - DMX Drivers
 - python 2.7
+- ~~[nanoleaf](https://github.com/software-2/nanoleaf)~~ Currently hacked into this projects source because I had to port it to python 2.7. TODO make a proper fork and import that
 
 ### Set up a light
 
@@ -28,6 +30,8 @@ Developed on OSX 10.13.3 High Sierra
 We used [this example](http://developer.choosemuse.com/research-tools-example/grabbing-data-from-museio-a-few-simple-examples-of-muse-osc-servers#python) to get started with pyliblo
 
 ### Resources
-- [Muse api](http://developer.choosemuse.com/tools/available-data)
+- [Muse API](http://developer.choosemuse.com/tools/available-data)
 - [OLA API](https://www.openlighting.org/ola/developer-documentation/python-api/)
 - [pyliblo](http://das.nasophon.de/pyliblo/) (for OSC messages)
+- [Nanoleaf API](http://forum.nanoleaf.me/docs/openapi)
+- [nanoleaf examples](https://github.com/ceejbot/nanoleaves/blob/master/examples/fade-burst.json)

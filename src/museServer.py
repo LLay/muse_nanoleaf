@@ -24,6 +24,14 @@ import Config as config
 def avg(*values):
     return reduce(lambda x, y: x + y, values) / len(values)
 
+# Wrapper for NanoleafLightManager
+class NanoleafClient():
+    def __init__(self):
+        self.lightManager = NanoleafLightManager()
+
+    def updateLights(self, color):
+        self.lightManager.updateLights(color.r, color.g, color.b, color.brightness)
+
 class DMXClient():
     def __init__(self):
         self.lightManager = DMXLightManager(tickInterval=10)
@@ -72,6 +80,10 @@ class MuseServer(ServerThread):
 
         self.lightServerThreadDMX = StoppableThread(self.serveDMXLights)
         self.lightServerThreadDMX.start()
+
+        self.lightServerThreadNanoleaf = StoppableThread(self.serveNanoleafLights)
+        self.lightServerThreadNanoleaf.start()
+        self.globalMixer = None
     #
     #     self.state.alpha = .32
     #     self.state.beta = .32
@@ -98,7 +110,24 @@ class MuseServer(ServerThread):
 
     def kill(self):
         self.lightServerThreadDMX.stop()
+        self.lightServerThreadNanoleaf.stop()
         # self.connectThread.stop()
+
+    def serveNanoleafLights(self, thread):
+        nanoleafClient = NanoleafClient()
+
+        while not thread.stopped():
+            try:
+                light = self.globalMixer.getLight()
+                nanoleafClient.updateLights(self.light.r, self.light.g, self.light.b, self.light.brightness)
+
+                time.sleep(config.NANOLEAF_LIGHT_UPDATE_INTERVAL)
+
+            except Exception, err:
+                print "Exception in serveNanoleafLights: ", err.__class__.__name__, err.message
+                sys.exit()
+        sys.exit()
+
 
     def serveDMXLights(self, thread):
         dmxClient = DMXClient()
@@ -119,6 +148,9 @@ class MuseServer(ServerThread):
         # Start color mixing
         eegMixer.startDefaultAnimation()
         spotlightMixer.startDefaultAnimation()
+
+        # for Nanoleaf client to poach our eeg color
+        self.globalMixer = eegMixer
 
         count = config.LOG_PRINT_RATE / config.LIGHT_UPDATE_INTERVAL
         while not thread.stopped():
