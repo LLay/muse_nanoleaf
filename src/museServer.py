@@ -73,28 +73,6 @@ class MuseServer(ServerThread):
         self.lightServerThreadDMX = StoppableThread(self.serveDMXLights)
         self.lightServerThreadDMX.start()
 
-<<<<<<< HEAD
-        self.state.alpha = .32
-        self.state.beta = .32
-        self.state.delta = .32
-        self.state.gamma = .32
-        self.state.theta = .32
-        self.connectThread = StoppableThread(self.connectToggle)
-        self.connectThread.start()
-
-    def connectToggle(self, thread):
-        self.state.connected = 1
-        self.state.touching_forehead = 1
-        while not thread.stopped():
-            self.state.alpha = random.random()
-            self.state.beta = random.random()
-            self.state.delta = random.random()
-            self.state.gamma = random.random()
-            self.state.theta = random.random()
-            # self.state.connected = abs(1-self.state.connected)
-            # self.state.touching_forehead = abs(1-self.state.touching_forehead)
-            time.sleep(0.1)
-=======
         # self.state.alpha = .32
         # self.state.beta = .32
         # self.state.delta = .32
@@ -111,7 +89,6 @@ class MuseServer(ServerThread):
     #         self.state.touching_forehead = abs(1-self.state.touching_forehead)
     #         print "--- set connected and touching_forehead to:", self.state.connected, self.state.touching_forehead
     #         time.sleep(5)
->>>>>>> refactor dmxserver start call. Changes nothing
 
     def kill(self):
         # TODO Dim all lights to 0
