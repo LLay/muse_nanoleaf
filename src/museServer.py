@@ -63,6 +63,9 @@ class NanoleafClient():
     def updateLights(self, color):
         self.lightManager.updateLights(color.r, color.g, color.b, color.brightness)
 
+    def kill(self):
+        self.lightManager.kill()
+
 class DMXClient():
     def __init__(self):
         self.lightManager = DMXLightManager(tickInterval=10)
@@ -85,9 +88,6 @@ class DMXClient():
     def kill(self):
         self.lightManager.thread.stop()
         #TODO Implement self.lightManager.kill()
-
-class NodeLeafClient():
-    pass
 
 # MuseServer
 receivingMessages = True
@@ -158,8 +158,10 @@ class MuseServer(ServerThread):
 
             except Exception, err:
                 print "Exception in serveNanoleafLights: ", err.__class__.__name__, err.message
+                nanoleafClient.kill()
                 sys.exit()
         print "EXITING serveNanoleafLights"
+        nanoleafClient.kill()
         sys.exit()
 
 

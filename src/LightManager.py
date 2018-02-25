@@ -1,6 +1,7 @@
 from ola.ClientWrapper import ClientWrapper
 from Orcan2 import Orcan2, Mode
 from StoppableThread import StoppableThread
+from threading import Thread, Event
 
 import array
 import sys
@@ -53,7 +54,7 @@ class NanoleafLightManager:
             # aurora['aurora'].effect = ANIMATION_ID
         print "Finished Turning on Auroras"
 
-        self.pool = Pool(processes=4) # Start a worker processes.
+        # self.pool = Pool(processes=2) # Start a worker processes.
 
 # +++++++++++++++++++++++
         # print "Retrieving auroras..."
@@ -94,7 +95,9 @@ class NanoleafLightManager:
         # print "Finished setting lights to white"
 
     def updateAurora(self, aurora, effect):
-        aurora['aurora'].effect_set_raw(effect)
+        print("Updating aurora {}".format(aurora))
+        print("Response", aurora['aurora'].effect_set_raw(effect))
+        return 0
 
     def updateLights(self, r, g, b, brightness):
         # h,s,b = colorsys.rgb_to_hsv(r,g,b) # Assuming value == brightness
@@ -106,11 +109,32 @@ class NanoleafLightManager:
 
         # CASE 1 - update at 100fps
         #  - set the god damn color
+        threads = []
         for aurora in self.auroras:
-            effect = self.getStaticEffect(aurora, r,g,b)
-            self.pool.apply_async(self.updateAurora, [aurora['aurora'], effect], callback)
-            # aurora['aurora'].effect_set_raw(effect)
+            try:
+                effect = self.getStaticEffect(aurora, r,g,b)
+                t = Thread(target=self.updateAurora, args=(aurora, effect,))
+                # t.setDaemon(True)
+                threads.append(t)
+                # lightServerThreadNanoleaf = StoppableThread(self.updateAurora)
+                # lightServerThreadNanoleaf.start()
+                # aurora['aurora'].effect_set_raw(effect)
 
+                # result = self.pool.apply_async(self.updateAurora, [aurora, effect])
+                # print "result", result, result.get()
+
+            except Exception, err:
+                print "Exception in NanoleafClient.updateLights(): ", err.__class__.__name__, err.message
+
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        # print("All threads done")
+            # aurora['aurora'].effect_set_raw(effect)
+        # self.pool.close()
+        # self.pool.join()
         # CASE 2 - sample at once every 2 seconds. Ensure aurora is all one color within 2 seconds so that we can transition smoothly
         # get current lights state/color
         # transition between them
@@ -119,8 +143,8 @@ class NanoleafLightManager:
 
     def getStaticEffect(self, aurora, r, g, b):
         panelIDs = aurora['panelIDs']
-        numFrames = 10
-        transitionTime = 10 # Decaseconds
+        numFrames = 1
+        transitionTime = 1 # Decaseconds
 
         # animData is of the form: <numPanels> <panelId0> <numFrames0> <RGBWT01> <RGBWT02> ... <RGBWT0n(0)> <panelId1> <numFrames1> <RGBWT11> <RGBWT12> ... <RGBWT1n(1)> ... ... <panelIdN> <numFramesN> <RGBWTN1> <RGBWTN2> ... <RGBWTNn(N)>
         animData = "%d " % (len(panelIDs))
@@ -134,6 +158,9 @@ class NanoleafLightManager:
             "animData": animData,
             "loop": False
         }
+
+    def kill(self):
+        pass
 
 class DMXLightManager:
     def DmxSent(self, state):

@@ -2,7 +2,7 @@
 # How often we update the lights. Measured in seconds. Minimum of 0.1 (You can go lower, but we only get data from the muse at 10Hz)
 LIGHT_UPDATE_INTERVAL = 0.01
 # How often we update the nanoleaf lights. Measured in seconds. Because nanoleaf does smooth transitions by itself, we don't have to have such a high fps
-NANOLEAF_LIGHT_UPDATE_INTERVAL = 0.01
+NANOLEAF_LIGHT_UPDATE_INTERVAL = 0.1
 # How often we internally render an new frame of the default animation
 DEFAULT_ANIMATION_RENDER_RATE = 0.01
 # Number of second over which we average eeg signals.
