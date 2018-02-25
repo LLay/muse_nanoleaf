@@ -144,7 +144,7 @@ class MuseServer(ServerThread):
     def kill(self):
         self.lightServerThreadDMX.stop()
         self.lightServerThreadNanoleaf.stop()
-        # self.connectThread.stop()
+        self.connectThread.stop()
 
     def serveNanoleafLights(self, thread):
         nanoleafClient = NanoleafClient()
@@ -152,9 +152,8 @@ class MuseServer(ServerThread):
         while not thread.stopped():
             try:
                 light = self.globalMixer.getLight()
-                nanoleafClient.updateLights(light.r, light.g, light.b, light.brightness)
-                # XXX Debug
-                print "Nanoleaf lights (from Mixer), COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (e.r, e.g, e.b, e.brightness)
+                nanoleafClient.updateLights(light)
+                # print "Nanoleaf lights (from Mixer), COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (light.r, light.g, light.b, light.brightness)
                 time.sleep(config.NANOLEAF_LIGHT_UPDATE_INTERVAL)
 
             except Exception, err:
@@ -204,11 +203,11 @@ class MuseServer(ServerThread):
                     receivingMessages = False
                     e = eegLight
                     s = spotlightLight
-                    print ""
-                    print "User conectivity (binary): %d score: %f raw: %s" % (self.state.connected, self.state.connectionScore, str(self.connections_debug))
-                    print "Muse data: ALPHA: %f, BETA: %f, DELTA: %f, GAMMA: %f, THETA: %f" % (self.state.alpha, self.state.beta, self.state.delta, self.state.gamma, self.state.theta)
-                    print "Muse lights (from Mixer), ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (config.EEG_LIGHT_GROUP_ADDRESS, e.r, e.g, e.b, e.brightness)
-                    print "Spotlight (from Mixer),   ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, s.r, s.g, s.b, s.brightness)
+                    # print ""
+                    # print "User conectivity (binary): %d score: %f raw: %s" % (self.state.connected, self.state.connectionScore, str(self.connections_debug))
+                    # print "Muse data: ALPHA: %f, BETA: %f, DELTA: %f, GAMMA: %f, THETA: %f" % (self.state.alpha, self.state.beta, self.state.delta, self.state.gamma, self.state.theta)
+                    # print "Muse lights (from Mixer), ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (config.EEG_LIGHT_GROUP_ADDRESS, e.r, e.g, e.b, e.brightness)
+                    # print "Spotlight (from Mixer),   ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, s.r, s.g, s.b, s.brightness)
                     count = 0
 
                 dmxClient.updateLightGroup(config.EEG_LIGHT_GROUP_ADDRESS, eegLight)

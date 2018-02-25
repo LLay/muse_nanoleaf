@@ -34,4 +34,4 @@ We used [this example](http://developer.choosemuse.com/research-tools-example/gr
 - [OLA API](https://www.openlighting.org/ola/developer-documentation/python-api/)
 - [pyliblo](http://das.nasophon.de/pyliblo/) (for OSC messages)
 - [Nanoleaf API](http://forum.nanoleaf.me/docs/openapi)
-- [nanoleaf examples](https://github.com/ceejbot/nanoleaves/blob/master/examples/fade-burst.json)
+- [nanoleaf examples](https://github.com/ceejbot/nanoleaves/blob/master/examples)
