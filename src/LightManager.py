@@ -17,31 +17,29 @@ ANIMATION_ID = "myanimation"
 
 class NanoleafLightManager:
     def __init__(self):
-        print "Retrieving auroras..."
-        ipAddressList = setup.find_auroras()
-        print "Auroras found:", ipAddressList
 
-        # print "Selecting only whitelisted auroras..."
-        # ipWhitelist = []
-        # ipAddressList = [x for x in ipAddressList if x in ipWhitelist]
-        # print "Auroras used:", ipAddressList
+#         New Aurora found at 192.168.128.31 - deviceid:11:f1:bd:5b:dd:c4
+# New Aurora found at 192.168.128.19 - deviceid:18:bb:e5:69:e8:83
+# New Aurora found at 192.168.128.32 - deviceid:65:4C:A6:0D:AA:08
+# {u'192.168.128.31': None, u'192.168.128.19': None, u'192.168.128.32': None}
+# Tokens generated:
+#
 
-        print "Retrieving auth tokens..."
-        ipAuthMap = {}
-        for ip in ipAddressList:
-            ipAuthMap[ip] = setup.generate_auth_token(ip)
-        print "Tokens generated:", ipAuthMap
-
+        ipAuthMap = {
+            u'192.168.128.31': u'jcjYtfzt4zusn82lSJ5eHLOPzuiOgoDP',
+            u'192.168.128.32': u'WTq3eIKY8fdfgGZjQlvbbe7E7fkKYDW4'
+        }
         print "Instatiating Aurora Objects..."
         self.auroras = []
         for ip in ipAuthMap:
+            print "ip:", ip
+            print "token:", ipAuthMap[ip]
             self.auroras += [{'aurora': Aurora(ip, ipAuthMap[ip])}]
         print "Finished Instatiating Aurora Objects..."
 
         print "Initiating Aurora Metadata..."
-        self.auroras = {}
         for aurora in self.auroras:
-            aurora['panelIDs'] = [x.panelId for x in self.aurora.panel_positions()]
+            aurora['panelIDs'] = [x['panelId'] for x in aurora['aurora'].panel_positions]
         print "Finished Initiating Aurora Metadata..."
 
         print "Turning on Auroras"
@@ -50,17 +48,51 @@ class NanoleafLightManager:
             # aurora['aurora'].effect = ANIMATION_ID
         print "Finished Turning on Auroras"
 
-        print "Setting lights to white"
-        self.updateLights(255, 255, 255, 100)
-        print "Finished setting lights to white"
+# +++++++++++++++++++++++
+        # print "Retrieving auroras..."
+        # ipAddressList = setup.find_auroras()
+        # print "Auroras found:", ipAddressList
+        #
+        # # print "Selecting only whitelisted auroras..."
+        # # ipWhitelist = []
+        # # ipAddressList = [x for x in ipAddressList if x in ipWhitelist]
+        # # print "Auroras used:", ipAddressList
+        #
+        # print "Retrieving auth tokens..."
+        # ipAuthMap = {}
+        # for ip in ipAddressList:
+        #     ipAuthMap[ip] = setup.generate_auth_token(ip)
+        # print "Tokens generated:", ipAuthMap
+        #
+        # print "Instatiating Aurora Objects..."
+        # self.auroras = []
+        # for ip in ipAuthMap:
+        #     self.auroras += [{'aurora': Aurora(ip, ipAuthMap[ip])}]
+        # print "Finished Instatiating Aurora Objects..."
+        #
+        # print "Initiating Aurora Metadata..."
+        # self.auroras = {}
+        # for aurora in self.auroras:
+        #     aurora['panelIDs'] = [x.panelId for x in self.aurora.panel_positions()]
+        # print "Finished Initiating Aurora Metadata..."
+        #
+        # print "Turning on Auroras"
+        # for aurora in self.auroras:
+        #     aurora['aurora'].on = True
+        #     # aurora['aurora'].effect = ANIMATION_ID
+        # print "Finished Turning on Auroras"
+        #
+        # print "Setting lights to white"
+        # self.updateLights(255, 255, 255, 100)
+        # print "Finished setting lights to white"
 
     def updateLights(self, r, g, b, brightness):
         # h,s,b = colorsys.rgb_to_hsv(r,g,b) # Assuming value == brightness
 
         # TODO Modify RGB values by brightness. Experimental:
-        # r = r * brightness / 100
-        # g = g * brightness / 100
-        # b = b * brightness / 100
+        r = r * brightness / 100
+        g = g * brightness / 100
+        b = b * brightness / 100
 
         # CASE 1 - update at 100fps
         #  - set the god damn color

@@ -9,7 +9,7 @@ import time
 # https://github.com/software-2/nanoleaf
 
 
-def find_auroras(seek_time = 30):
+def find_auroras(seek_time = 5):
     u"""
     Returns a list of the IP addresses of all Auroras found on the network
 
