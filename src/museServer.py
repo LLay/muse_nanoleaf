@@ -34,10 +34,10 @@ USER_TO_DEFAULT_FADE_WINDOW = 3
 # The delay in seconds between loss of signal on all contacts and ..doing something about it
 CONTACT_LOS_TIMEOUT = 3
 # the default brightness of the lights when the user is connected
-USER_LIGHT_BRIGHTNESS = 125
+USER_LIGHT_BRIGHTNESS = 255
 # the default brightness of the Default animation
-DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 125
-DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS = 125
+DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 255
+DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS = 255
 DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS_RANGE = 50
 
 # Light group addresses
