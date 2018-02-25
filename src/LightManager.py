@@ -108,8 +108,8 @@ class NanoleafLightManager:
         #  - set the god damn color
         for aurora in self.auroras:
             effect = self.getStaticEffect(aurora, r,g,b)
-            # self.pool.apply_async(self.updateAurora, [aurora['aurora'], effect], callback)
-            aurora['aurora'].effect_set_raw(effect)
+            self.pool.apply_async(self.updateAurora, [aurora['aurora'], effect], callback)
+            # aurora['aurora'].effect_set_raw(effect)
 
         # CASE 2 - sample at once every 2 seconds. Ensure aurora is all one color within 2 seconds so that we can transition smoothly
         # get current lights state/color
