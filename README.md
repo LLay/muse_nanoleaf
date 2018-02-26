@@ -31,3 +31,4 @@ We used [this example](http://developer.choosemuse.com/research-tools-example/gr
 - [Muse api](http://developer.choosemuse.com/tools/available-data)
 - [OLA API](https://www.openlighting.org/ola/developer-documentation/python-api/)
 - [pyliblo](http://das.nasophon.de/pyliblo/) (for OSC messages)
+- [ENTEC Driver](http://www.ftdichip.com/Drivers/D2XX.htm)
