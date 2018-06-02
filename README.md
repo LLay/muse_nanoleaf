@@ -1,6 +1,8 @@
 # muse_dmx
 A tool to visualize eeg waves captured by a Muse headband on a network of DMX lights
 
+![alt text](https://github.com/LLay/muse_light_installation/blob/master/resources/IMG_20180224_220502.jpg)
+
 ### Dependencies
 - [museSDK](http://developer.choosemuse.com/sdk/ios) (which includes [museIO](http://developer.choosemuse.com/tools/museio))
 - [pyliblo](http://das.nasophon.de/pyliblo/)
