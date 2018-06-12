@@ -1,56 +1,30 @@
 from liblo import *
 from threading import Thread
 
-import sys
-import time
-import random
-import traceback
 import math
 import numpy as np
-
-from LightManager import DMXLightManager, NanoleafLightManager
-from Orcan2 import Orcan2
-from PTVWIRE import PTVWIRE
-from LightMixer import EEGWaveLightMixer, SpotlightLightMixer
-from MovingAverage import MovingAverageExponential, MovingAverageLinear
-from StoppableThread import StoppableThread
-from HelperClasses import MuseState
-import Config as config
-
-# Debugging memory usage
-# from guppy import hpy
-# h = hpy()
-
+import random
+import sys
+import time
+import traceback
 import urllib2
 
-# How often we update the lights. Measured in seconds. Minimum of 0.1 (You can go lower, but we only get data from the muse at 10Hz)
-LIGHT_UPDATE_INTERVAL = 0.01
-# How often we internally render an new frame of the default animation
-DEFAULT_ANIMATION_RENDER_RATE = 0.01
-# Number of second over which we average eeg signals.
-ROLLING_EEG_WINDOW = 6
-# Number of second over which fade between user input and the default light animation.
-USER_TO_DEFAULT_FADE_WINDOW = 3
-# The delay in seconds between loss of signal on all contacts and ..doing something about it
-CONTACT_LOS_TIMEOUT = 3
-# the default brightness of the lights when the user is connected
-USER_LIGHT_BRIGHTNESS = 125
-# the default brightness of the Default animation
-DEFAULT_COLOR_ANIMATION_BRIGHTNESS = 125
-DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS = 125
-DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS_RANGE = 50
+from LightManager import DMXLightManager, NanoleafLightManager
+from LightMixer import EEGWaveLightMixer
+from MovingAverage import MovingAverageExponential, MovingAverageLinear
+from StoppableThread import StoppableThread
+from MuseState import MuseState
+import Config as config
 
-# Light group addresses
-EEG_LIGHT_GROUP_ADDRESS= 1
-SPOTLIGHT_LIGHT_GROUP_ADDRESS = 8
-
-# How often to print the log message in seconds
-LOG_PRINT_RATE = 1
-
-# Correct decimal place for relevant values. XXX Don't change me!
-ROLLING_EEG_WINDOW *= 10
-CONTACT_LOS_TIMEOUT *= 10
-USER_TO_DEFAULT_FADE_WINDOW = USER_TO_DEFAULT_FADE_WINDOW / LIGHT_UPDATE_INTERVAL or 1
+# TODO make the nanoleafpy2 a propers dependency
+# TODO make the connection to nanoleaf an option. when you run the program there
+# should be an option to search for and connect to existing nanoleaf installations
+# Then it should store the ips and auth tokent for these installations in some
+# persistant store.
+# If the option is not specified, this program should try to read from said persistant store
+#
+# TODO Finish gutting DMX logic, and any extra abstraction that is no longer needed
+# Make the threading a little easier to use?
 
 def avg(*values):
     return reduce(lambda x, y: x + y, values) / len(values)
@@ -66,30 +40,6 @@ class NanoleafClient():
     def kill(self):
         self.lightManager.kill()
 
-class DMXClient():
-    def __init__(self):
-        self.lightManager = DMXLightManager(tickInterval=10)
-        thread = StoppableThread(target = self.lightManager.run)
-        thread.start()
-
-    def createLightGroup(self, address, lightClass):
-        self.lightManager.createLightGroup(address, lightClass)
-
-    def updateLightGroup(self, address, color):
-        self.updateLightGroupBrightness(address, color.brightness)
-        self.updateLightGroupColor(address, color.r, color.g, color.b)
-
-    def updateLightGroupBrightness(self, address, brightness):
-        self.lightManager.getLightGroup(address).setBrightness(int(brightness))
-
-    def updateLightGroupColor(self, address, r,g,b):
-        self.lightManager.getLightGroup(address).setRGB(int(r), int(g), int(b))
-
-    def kill(self):
-        self.lightManager.thread.stop()
-        #TODO Implement self.lightManager.kill()
-
-# MuseServer
 receivingMessages = True
 timeSinceLastSecond = 1
 class MuseServer(ServerThread):
@@ -98,26 +48,23 @@ class MuseServer(ServerThread):
         # Listen on port 5001
         ServerThread.__init__(self, 5001)
         MovingAverageChoice = MovingAverageExponential
-        self.alpha_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
-        self.beta_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
-        self.delta_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
-        self.gamma_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
-        self.theta_relative_rolling_avg_generator = MovingAverageChoice(ROLLING_EEG_WINDOW)
+        self.alpha_relative_rolling_avg_generator = MovingAverageChoice(config.ROLLING_EEG_WINDOW)
+        self.beta_relative_rolling_avg_generator = MovingAverageChoice(config.ROLLING_EEG_WINDOW)
+        self.delta_relative_rolling_avg_generator = MovingAverageChoice(config.ROLLING_EEG_WINDOW)
+        self.gamma_relative_rolling_avg_generator = MovingAverageChoice(config.ROLLING_EEG_WINDOW)
+        self.theta_relative_rolling_avg_generator = MovingAverageChoice(config.ROLLING_EEG_WINDOW)
 
-        self.all_contacts_mean = MovingAverageChoice(CONTACT_LOS_TIMEOUT)
+        self.all_contacts_mean = MovingAverageChoice(config.CONTACT_LOS_TIMEOUT)
 
-        # EEG signals, connected, touching_forehead
         self.state = MuseState()
 
         self.connections_debug = (0, 0, 0, 0)
-
-        self.lightServerThreadDMX = StoppableThread(self.serveDMXLights)
-        self.lightServerThreadDMX.start()
 
         self.lightServerThreadNanoleaf = StoppableThread(self.serveNanoleafLights)
         self.lightServerThreadNanoleaf.start()
         self.globalMixer = None
 
+        # Fake input
         self.state.alpha = .32
         self.state.beta = .32
         self.state.delta = .32
@@ -142,7 +89,6 @@ class MuseServer(ServerThread):
         sys.exit()
 
     def kill(self):
-        self.lightServerThreadDMX.stop()
         self.lightServerThreadNanoleaf.stop()
         self.connectThread.stop()
 
@@ -164,73 +110,6 @@ class MuseServer(ServerThread):
         nanoleafClient.kill()
         sys.exit()
 
-
-    def serveDMXLights(self, thread):
-        global receivingMessages
-        dmxClient = DMXClient()
-        dmxClient.createLightGroup(config.EEG_LIGHT_GROUP_ADDRESS, Orcan2)
-        dmxClient.createLightGroup(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, PTVWIRE)
-        # Create color mixing
-        eegMixer = EEGWaveLightMixer(
-            user_to_default_fade_window=config.USER_TO_DEFAULT_FADE_WINDOW,
-            default_animation_render_rate=config.DEFAULT_ANIMATION_RENDER_RATE,
-            default_animation_brightness=config.DEFAULT_COLOR_ANIMATION_BRIGHTNESS,
-            user_light_brightness=config.USER_LIGHT_BRIGHTNESS)
-        spotlightMixer = SpotlightLightMixer(
-            user_to_default_fade_window=config.USER_TO_DEFAULT_FADE_WINDOW,
-            default_animation_render_rate=config.DEFAULT_ANIMATION_RENDER_RATE,
-            default_animation_brightness=config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS,
-            default_animation_brightness_range=config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS_RANGE
-            )
-        # Start color mixing
-        eegMixer.startDefaultAnimation()
-        spotlightMixer.startDefaultAnimation()
-
-        # for Nanoleaf client to poach our eeg color
-        self.globalMixer = eegMixer
-
-        count = config.LOG_PRINT_RATE / config.LIGHT_UPDATE_INTERVAL
-        while not thread.stopped():
-            try:
-                eegMixer.updateState(self.state)
-                spotlightMixer.updateState(self.state)
-
-                eegLight = eegMixer.getLight()
-                spotlightLight = spotlightMixer.getLight()
-
-                # Logging
-                if count >= config.LOG_PRINT_RATE / config.LIGHT_UPDATE_INTERVAL:
-                    if receivingMessages == False:
-                        self.state.connected = self.state.connected / 2
-                    receivingMessages = False
-                    e = eegLight
-                    s = spotlightLight
-                    # print ""
-                    # print "User conectivity (binary): %d score: %f raw: %s" % (self.state.connected, self.state.connectionScore, str(self.connections_debug))
-                    # print "Muse data: ALPHA: %f, BETA: %f, DELTA: %f, GAMMA: %f, THETA: %f" % (self.state.alpha, self.state.beta, self.state.delta, self.state.gamma, self.state.theta)
-                    # print "Muse lights (from Mixer), ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (config.EEG_LIGHT_GROUP_ADDRESS, e.r, e.g, e.b, e.brightness)
-                    # print "Spotlight (from Mixer),   ADDRESS: %d, COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, s.r, s.g, s.b, s.brightness)
-                    count = 0
-
-                dmxClient.updateLightGroup(config.EEG_LIGHT_GROUP_ADDRESS, eegLight)
-                dmxClient.updateLightGroup(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, spotlightLight)
-
-                count += 1
-                time.sleep(config.LIGHT_UPDATE_INTERVAL)
-
-            except Exception, err:
-                print "Exception in serveDMXLights: ", err.__class__.__name__, err.message
-                traceback.print_exc(err)
-                dmxClient.kill()
-                eegMixer.kill()
-                spotlightMixer.kill()
-                sys.exit()
-        self.dimLights(dmxClient)
-        dmxClient.kill()
-        eegMixer.kill()
-        spotlightMixer.kill()
-        sys.exit()
-
     # Dim the light over 2 seconds. Then as a precaution set their colors to black
     def dimLights(self, dmxClient):
         # number of decaseconds to fade
@@ -242,14 +121,12 @@ class MuseServer(ServerThread):
         curSpotBright = startSpotBright
 
         for _ in range(fadeCount):
-            # print "start bright", startEEGBright
             curEEGBright -= config.USER_LIGHT_BRIGHTNESS / float(fadeCount)
             curEEGBright = max(0,int(curEEGBright))
             dmxClient.updateLightGroupBrightness(config.EEG_LIGHT_GROUP_ADDRESS,curEEGBright)
             curSpotBright -= config.DEFAULT_SPOTLIGHT_ANIMATION_BRIGHTNESS / float(fadeCount)
             curSpotBright = max(0, int(curSpotBright))
             dmxClient.updateLightGroupBrightness(config.SPOTLIGHT_LIGHT_GROUP_ADDRESS, curSpotBright)
-            # print "curBright", curEEGBright
             if curEEGBright == curSpotBright ==  0:
                 break
             time.sleep(0.01)

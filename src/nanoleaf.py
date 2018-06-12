@@ -2,6 +2,8 @@ import sys
 sys.path.insert(0, '/Users/lay/workspace/dmx-lib/muse_controller/nanoleafpy2')
 from nanoleaf import setup, Aurora
 
+# TODO this file needs to be automated
+
 # print "Retrieving auroras..."
 # ipAddressList = setup.find_auroras()
 # print "Auroras found:", ipAddressList

@@ -1,5 +1,3 @@
-from ola.ClientWrapper import ClientWrapper
-from Orcan2 import Orcan2, Mode
 from StoppableThread import StoppableThread
 from threading import Thread, Event
 
@@ -12,25 +10,12 @@ from nanoleaf import setup, Aurora
 
 from multiprocessing import Pool
 
-# rgbToHSB(r,g,b):
-#     h,s,v = colorsys.rgb_to_hsv(r,g,b)
-    # h,l,s = colorsys.rgb_to_hls(r,g,b)
-
 ANIMATION_ID = "myanimation"
-
-# import datetime
-# print datetime.datetime.now()
 
 class NanoleafLightManager:
     def __init__(self):
 
-#         New Aurora found at 192.168.128.31 - deviceid:11:f1:bd:5b:dd:c4
-# New Aurora found at 192.168.128.19 - deviceid:18:bb:e5:69:e8:83
-# New Aurora found at 192.168.128.32 - deviceid:65:4C:A6:0D:AA:08
-# {u'192.168.128.31': None, u'192.168.128.19': None, u'192.168.128.32': None}
-# Tokens generated:
-#
-
+        # TODO this shit needs to be automated
         ipAuthMap = {
             u'192.168.128.31': u'jcjYtfzt4zusn82lSJ5eHLOPzuiOgoDP',
             u'192.168.128.32': u'WTq3eIKY8fdfgGZjQlvbbe7E7fkKYDW4'
@@ -100,15 +85,11 @@ class NanoleafLightManager:
         return 0
 
     def updateLights(self, r, g, b, brightness):
-        # h,s,b = colorsys.rgb_to_hsv(r,g,b) # Assuming value == brightness
-
         # TODO Modify RGB values by brightness. Experimental:
         r = int(r * (brightness / 255.0))
         g = int(g * (brightness / 255.0))
         b = int(b * (brightness / 255.0))
 
-        # CASE 1 - update at 100fps
-        #  - set the god damn color
         threads = []
         for aurora in self.auroras:
             try:
@@ -131,16 +112,6 @@ class NanoleafLightManager:
         for thread in threads:
             thread.join()
 
-        # print("All threads done")
-            # aurora['aurora'].effect_set_raw(effect)
-        # self.pool.close()
-        # self.pool.join()
-        # CASE 2 - sample at once every 2 seconds. Ensure aurora is all one color within 2 seconds so that we can transition smoothly
-        # get current lights state/color
-        # transition between them
-
-        # CASE 3 - Same as case 2, except use the flow animation for the transition
-
     def getStaticEffect(self, aurora, r, g, b):
         panelIDs = aurora['panelIDs']
         numFrames = 1
@@ -161,69 +132,3 @@ class NanoleafLightManager:
 
     def kill(self):
         pass
-
-class DMXLightManager:
-    def DmxSent(self, state):
-      if not state.Succeeded() or self.thread.stopped():
-        self.clientWrapper.Stop()
-        sys.exit()
-
-    UNIVERSE_DEFAULT = 1
-    TICK_INTERVAL_DEFAULT = 10  # in ms
-    LIGHT_ADDRESS = 0
-    LIGHT_INSTANCE = 1
-    NUM_BYTES_PER_LIGHT = 8
-
-    def __init__(self, clientWrapper = ClientWrapper(), lightAddress = None, light = None, universe = UNIVERSE_DEFAULT, tickInterval = TICK_INTERVAL_DEFAULT):
-        self.clientWrapper = clientWrapper
-        self.client = clientWrapper.Client()
-        self.lights = {}
-        if lightAddress and light:
-            self.lights[lightAddress] = light
-        self.universe = universe
-        self.tickInterval = tickInterval
-        self.thread = None
-
-
-    def createLightGroup(self, address, clazz):
-        self.lights[address] = clazz()
-        return self.lights[address]
-
-    def getLightGroup(self, address):
-        return self.lights[address]
-
-    def SendDMXFrame(self):
-        self.clientWrapper.AddEvent(self.tickInterval, self.SendDMXFrame)
-        lightState = self.wrapArrayState(self.getLightStatesAsArrays())
-        self.client.SendDmx(self.universe, lightState, self.DmxSent)
-
-    def getLightStatesAsArrays(self):
-        #TODO Think about optimization here
-        orderedLightGroups = self.getLightGroupsOrderedByAddress()
-        arraySize = orderedLightGroups[-1][DMXLightManager.LIGHT_ADDRESS] + DMXLightManager.NUM_BYTES_PER_LIGHT
-        lightArray = [0]*arraySize
-        for address,  lightGroup in orderedLightGroups:
-            lightGroupState = lightGroup.getStateAsArray()
-            for offset in range(len(lightGroupState)):
-                lightArray[address+offset-1] = lightGroupState[offset]
-        return lightArray
-
-    def getLightGroupsOrderedByAddress(self):
-        orderedLights = list(self.lights.iteritems())
-        orderedLights = sorted(orderedLights,key = lambda t: t[0])
-        return orderedLights
-
-    def wrapArrayState(self, state):
-        return array.array('B', state)
-
-    def run(self, thread):
-        self.thread = thread
-        self.clientWrapper.AddEvent(self.tickInterval, self.SendDMXFrame)
-        self.clientWrapper.Run()
-
-    # _instance = None
- #    def __new__(cls, *args, **kwargs):
-    #     if not cls._instance:
- #            cls._instance = super(Orcan2LightManager, cls).__new__(
- #                                cls, *args, **kwargs)
- #        return cls._instance

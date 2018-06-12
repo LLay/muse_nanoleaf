@@ -5,7 +5,7 @@ import time
 import sys
 import numpy as np
 from random import shuffle
-from HelperClasses import MuseState
+from MuseState import MuseState
 from MovingAverage import MovingAverageExponential, MovingAverageLinear
 from StoppableThread import StoppableThread
 from Config import LIGHT_UPDATE_INTERVAL
@@ -39,87 +39,6 @@ class LightMixer():
         raise NotImplementedError('Need to implement getLight')
     def kill(self):
         raise NotImplementedError('Need to implement kill')
-
-class SpotlightLightMixer(LightMixer):
-    def __init__(self,
-        user_to_default_fade_window,
-        default_animation_render_rate,
-        default_animation_brightness,
-        default_animation_brightness_range):
-        self.default_animation_render_rate = default_animation_render_rate
-        self.default_animation_brightness = default_animation_brightness
-        self.default_animation_brightness_range = default_animation_brightness_range
-
-        # These values help use keep track of when the user is connected to the muse
-        self.connected_mean = 0
-        self.touching_forehead_mean = 0
-        self.connected_rolling_mean_generator = MovingAverageLinear(user_to_default_fade_window)
-        self.touching_forehead_mean_generator = MovingAverageLinear(user_to_default_fade_window)
-
-        self.userState = MuseState()
-
-        # The data that represents the muse data
-        self.userLight = LightState()
-        # The current colour of the default animation
-        self.defaultLight = LightState()
-        # The weighted mix of the user and default animation color.
-        # When the user connects (to the muse) this color will transition
-        # over 3 seconds to be their color, when the user disconnects, this color
-        # transitions to the default animation color
-        self.mixedLight = LightState()
-
-    def startDefaultAnimation(self):
-        self.defaultAnimationThread = StoppableThread(self.serveDefaultAnimation, )
-        self.defaultAnimationThread.start()
-
-    def serveDefaultAnimation(self, thread):
-        # Undulation bounds
-        brightness_lower_bound = self.default_animation_brightness - (self.default_animation_brightness_range / 2)
-        brightness_lower_bound = max(0, brightness_lower_bound)
-
-        brightness_upper_bound = self.default_animation_brightness + (self.default_animation_brightness_range / 2)
-        brightness_upper_bound = min(255, brightness_upper_bound)
-
-        # initialize animation values
-        timeToNextBrightness = 0
-        currentTime = 0
-        self.defaultLight.r,self.defaultLight.g,self.defaultLight.b = 255,255,255 # Starting color. White
-        brightness = 0 # Fade in the spotlight on server start
-        while not thread.stopped():
-            if currentTime == timeToNextBrightness:
-                brightness_old = brightness
-                brightness = random.randint(brightness_lower_bound, brightness_upper_bound)
-                timeToNextBrightness = random.randint(6/self.default_animation_render_rate,8/self.default_animation_render_rate)
-                currentTime = 0
-
-            self.defaultLight.brightness = ease(pytweening.easeInOutQuad, brightness_old, brightness, currentTime, timeToNextBrightness)
-            # self.defaultLight.brightness = ease(pytweening.easeInOutQuad, brightness_old, brightness, currentTime, timeToNextBrightness) * (1-self.userState.connectionScore) # modify using the connection score. This is jumpy, so not using for now
-
-            currentTime += 1
-            time.sleep(self.default_animation_render_rate)
-        sys.exit()
-
-    # This mixes the use and default colours depending on if the user is connected or not
-    def updateMixedLight(self):
-        self.mixedLight.r = int((self.userLight.r * self.connected_mean) + (self.defaultLight.r * (1-self.connected_mean)))
-        self.mixedLight.g = int((self.userLight.g * self.connected_mean) + (self.defaultLight.g * (1-self.connected_mean)))
-        self.mixedLight.b = int((self.userLight.b * self.connected_mean) + (self.defaultLight.b * (1-self.connected_mean)))
-        self.mixedLight.brightness = int((self.userLight.brightness * self.connected_mean) + (self.defaultLight.brightness * (1-self.connected_mean)))
-
-    def updateState(self, user_state):
-        self.userState = user_state
-        self.connected_mean = self.connected_rolling_mean_generator.next(user_state.connected)
-        self.updateMixedLight()
-        # Note that we leave the user colors as black,
-        # to fade the spotlight off when a user is connected
-
-    def getLight(self):
-        return self.mixedLight
-
-    def kill(self):
-        if hasattr(self, 'defaultAnimationThread'):
-            self.defaultAnimationThread.stop()
-
 
 class EEGWaveLightMixer(LightMixer):
     def __init__(self,
@@ -219,7 +138,7 @@ class EEGWaveLightMixer(LightMixer):
             self.defaultLight.r = ease(easingFunction, r_old, r, currentTime, timeToNextColor)
             self.defaultLight.g = ease(easingFunction, g_old, g, currentTime, timeToNextColor)
             self.defaultLight.b = ease(easingFunction, b_old, b, currentTime, timeToNextColor)
-            
+
             # Fade in the lights when we start the server
             if oneTimeFadeIn <= 1:
                 # Fade lights in over 2 second
