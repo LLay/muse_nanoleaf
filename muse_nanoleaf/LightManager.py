@@ -5,7 +5,6 @@ import array
 import sys
 import colorsys
 
-sys.path.insert(0, '/Users/lay/workspace/dmx-lib/muse_controller/nanoleafpy2')
 from nanoleaf import setup, Aurora
 
 from multiprocessing import Pool

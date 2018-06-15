@@ -1,1 +1,0 @@
-HELLO = u"hello world"

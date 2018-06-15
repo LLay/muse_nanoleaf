@@ -4,24 +4,24 @@ from nanoleaf import setup, Aurora
 
 # TODO this file needs to be automated
 
-# print "Retrieving auroras..."
-# ipAddressList = setup.find_auroras()
-# print "Auroras found:", ipAddressList
+print "Retrieving auroras..."
+ipAddressList = setup.find_auroras()
+print "Auroras found:", ipAddressList
 
-# ipAddressList = [u'192.168.128.31', u'192.168.128.19', u'192.168.128.32']
-# print "Selecting only whitelisted auroras..."
-# ipWhitelist = []
-# ipAddressList = [x for x in ipAddressList if x in ipWhitelist]
-# print "Auroras used:", ipAddressList
+ipAddressList = [u'192.168.128.31', u'192.168.128.19', u'192.168.128.32']
+print "Selecting only whitelisted auroras..."
+ipWhitelist = []
+ipAddressList = [x for x in ipAddressList if x in ipWhitelist]
+print "Auroras used:", ipAddressList
 
-# print "Retrieving auth tokens..."
-# ipAuthMap = {}
-# for ip in ipAddressList:
-#     token = setup.generate_auth_token(ip)
-#     print "considering token", token
-#     if token is not None:
-#         ipAuthMap[ip] = token
-# print "Tokens generated:", ipAuthMap
+print "Retrieving auth tokens..."
+ipAuthMap = {}
+for ip in ipAddressList:
+    token = setup.generate_auth_token(ip)
+    print "considering token", token
+    if token is not None:
+        ipAuthMap[ip] = token
+print "Tokens generated:", ipAuthMap
 
 ipAuthMap = {
     u'192.168.128.31': u'jcjYtfzt4zusn82lSJ5eHLOPzuiOgoDP',

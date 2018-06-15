@@ -16,7 +16,7 @@ from StoppableThread import StoppableThread
 from MuseState import MuseState
 import Config as config
 
-# TODO make the nanoleafpy2 a propers dependency
+# TODO make the nanoleafpy a propers dependency. Or just rip parts out of it
 # TODO make the connection to nanoleaf an option. when you run the program there
 # should be an option to search for and connect to existing nanoleaf installations
 # Then it should store the ips and auth tokent for these installations in some
