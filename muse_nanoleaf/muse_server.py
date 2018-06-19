@@ -1,20 +1,23 @@
-from liblo import *
-from threading import Thread
+"""This is the light server module.
 
+This module does stuff. TODO
+"""
 import math
-import numpy as np
 import random
 import sys
 import time
 import traceback
-import urllib2
 
-from LightManager import DMXLightManager, NanoleafLightManager
-from LightMixer import EEGWaveLightMixer
-from MovingAverage import MovingAverageExponential, MovingAverageLinear
-from StoppableThread import StoppableThread
-from MuseState import MuseState
-import Config as config
+# from liblo import *
+# from pyliblo import *
+from python3-liblo import *
+
+from nanoleaf_client import NanoleafClient
+from light_mixer import EEGWaveLightMixer
+from moving_average import MovingAverageExponential, MovingAverageLinear
+from stoppable_thread import StoppableThread
+from muse_state import MuseState
+import config as config
 
 # TODO make the nanoleafpy a propers dependency. Or just rip parts out of it
 # TODO make the connection to nanoleaf an option. when you run the program there
@@ -29,32 +32,33 @@ import Config as config
 def avg(*values):
     return reduce(lambda x, y: x + y, values) / len(values)
 
-# Wrapper for NanoleafLightManager
-class NanoleafClient():
-    def __init__(self):
-        self.lightManager = NanoleafLightManager()
+# Wrapper for NanoleafClient
+# TODO remove this abstraction
+# class NanoleafClient():
+#     def __init__(self):
+#         self.lightManager = NanoleafClient()
+#
+#     def updateLights(self, color):
+#         self.lightManager.updateLights(color.r, color.g, color.b, color.brightness)
+#
+#     def kill(self):
+#         self.lightManager.kill()
 
-    def updateLights(self, color):
-        self.lightManager.updateLights(color.r, color.g, color.b, color.brightness)
-
-    def kill(self):
-        self.lightManager.kill()
-
-receivingMessages = True
+receivingMessages = True # TODO why?
 timeSinceLastSecond = 1
 class MuseServer(ServerThread):
 
     def __init__(self):
         # Listen on port 5001
         ServerThread.__init__(self, 5001)
-        MovingAverageChoice = MovingAverageExponential
-        self.alpha_relative_rolling_avg_generator = MovingAverageChoice(config.ROLLING_EEG_WINDOW)
-        self.beta_relative_rolling_avg_generator = MovingAverageChoice(config.ROLLING_EEG_WINDOW)
-        self.delta_relative_rolling_avg_generator = MovingAverageChoice(config.ROLLING_EEG_WINDOW)
-        self.gamma_relative_rolling_avg_generator = MovingAverageChoice(config.ROLLING_EEG_WINDOW)
-        self.theta_relative_rolling_avg_generator = MovingAverageChoice(config.ROLLING_EEG_WINDOW)
+        moving_average_choice = MovingAverageExponential
+        self.alpha_relative_rolling_avg_generator = moving_average_choice(config.ROLLING_EEG_WINDOW)
+        self.beta_relative_rolling_avg_generator = moving_average_choice(config.ROLLING_EEG_WINDOW)
+        self.delta_relative_rolling_avg_generator = moving_average_choice(config.ROLLING_EEG_WINDOW)
+        self.gamma_relative_rolling_avg_generator = moving_average_choice(config.ROLLING_EEG_WINDOW)
+        self.theta_relative_rolling_avg_generator = moving_average_choice(config.ROLLING_EEG_WINDOW)
 
-        self.all_contacts_mean = MovingAverageChoice(config.CONTACT_LOS_TIMEOUT)
+        self.all_contacts_mean = moving_average_choice(config.CONTACT_LOS_TIMEOUT)
 
         self.state = MuseState()
 
@@ -93,20 +97,20 @@ class MuseServer(ServerThread):
         self.connectThread.stop()
 
     def serveNanoleafLights(self, thread):
-        nanoleafClient = NanoleafClient()
+        nanoleafClient = NanoleafClient(True) # TODO this true should be configrable from commandlines
 
         while not thread.stopped():
             try:
                 light = self.globalMixer.getLight()
-                nanoleafClient.updateLights(light)
-                # print "Nanoleaf lights (from Mixer), COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (light.r, light.g, light.b, light.brightness)
+                nanoleafClient.updateLights(light.r, light.g, light.b, light.brightness)
+                # print("Nanoleaf lights (from Mixer), COLORS: r: %d g: %d b: %d, BRIGHTNESS: %d" % (light.r, light.g, light.b, light.brightness))
                 time.sleep(config.NANOLEAF_LIGHT_UPDATE_INTERVAL)
 
-            except Exception, err:
-                print "Exception in serveNanoleafLights: ", err.__class__.__name__, err.message
+            except Exception as err:
+                print("Exception in serveNanoleafLights: ", err.__class__.__name__, err.message)
                 nanoleafClient.kill()
                 sys.exit()
-        print "EXITING serveNanoleafLights"
+        print("EXITING serveNanoleafLights")
         nanoleafClient.kill()
         sys.exit()
 
@@ -134,22 +138,24 @@ class MuseServer(ServerThread):
     # receive alpha data
     @make_method('/muse/elements/alpha_relative', 'ffff')
     def alpha_relative_callback(self, path, *args):
-        weights = np.array([1,1])
-        values = np.array(args[0])
-        values = np.array(values[np.argsort(values)[-2:]])
-        alphaWeightedAndNormalized = self.weighter(values, weights, normalizationMin = .05, normalizationMax=.5)
-        x = self.alpha_relative_rolling_avg_generator.next(alphaWeightedAndNormalized)
-        self.state.alpha = x if not math.isnan(x) else 0
+        pass
+        # weights = np.array([1,1])
+        # values = np.array(args[0])
+        # values = np.array(values[np.argsort(values)[-2:]])
+        # alphaWeightedAndNormalized = self.weighter(values, weights, normalizationMin = .05, normalizationMax=.5)
+        # x = self.alpha_relative_rolling_avg_generator.next(alphaWeightedAndNormalized)
+        # self.state.alpha = x if not math.isnan(x) else 0
 
     # receive beta data
     @make_method('/muse/elements/beta_relative', 'ffff')
     def beta_relative_callback(self, path, *args):
-        weights = np.array([1,1])
-        values = np.array(args[0])
-        values = np.array(values[np.argsort(values)[-2:]])
-        betaWeightedAndNormalized = self.weighter(values, weights, normalizationMin=.05, normalizationMax=.5)
-        x = self.beta_relative_rolling_avg_generator.next(betaWeightedAndNormalized)
-        self.state.beta = x if not math.isnan(x) else 0
+        pass
+        # weights = np.array([1,1])
+        # values = np.array(args[0])
+        # values = np.array(values[np.argsort(values)[-2:]])
+        # betaWeightedAndNormalized = self.weighter(values, weights, normalizationMin=.05, normalizationMax=.5)
+        # x = self.beta_relative_rolling_avg_generator.next(betaWeightedAndNormalized)
+        # self.state.beta = x if not math.isnan(x) else 0
 
     # receive gamma data
     @make_method('/muse/elements/gamma_relative', 'ffff')
@@ -180,16 +186,18 @@ class MuseServer(ServerThread):
 
 
     def weighter(self, values, weights, normalizationMin = 0, normalizationMax = 1):
-        avgVal = np.nanmean(np.multiply(values,weights))
-        if np.isnan(avgVal):
-            return 0
-        normalizedAvgVal = (avgVal - normalizationMin) / (normalizationMax - normalizationMin)
-        normalizedAvgVal = max(0, normalizedAvgVal)
-        normalizedAvgVal = min(1, normalizedAvgVal)
-        return normalizedAvgVal
+        pass
+        # TODO these are commented because we stil need a replacement for numpy
+        # avgVal = np.nanmean(np.multiply(values,weights))
+        # if np.isnan(avgVal):
+        #     return 0
+        # normalizedAvgVal = (avgVal - normalizationMin) / (normalizationMax - normalizationMin)
+        # normalizedAvgVal = max(0, normalizedAvgVal)
+        # normalizedAvgVal = min(1, normalizedAvgVal)
+        # return normalizedAvgVal
 
     @make_method('/muse/elements/touching_forehead', 'i')
-    def horseshoe_callback(self, path, arg):
+    def touching_forehead_callback(self, path, arg):
         global receivingMessages
         receivingMessages = True
         # TODO apparently this callback never gets called
@@ -211,11 +219,11 @@ class MuseServer(ServerThread):
         if self.all_contacts_mean.next(connectionScore, printDebug=True) < 0.05 and self.state.connected:
             # It has been at least CONTACT_LOS_TIMEOUT seconds of total LOS on all contacts
             self.state.connected = 0
-            print "LOST CONNECTION"
+            print("LOST CONNECTION")
 
         if connectionScore > 0.5 and not self.state.connected:
             # This is the first time the user has put the muse on in at least CONTACT_LOS_TIMEOUT second
-            print "CONNECTED!!"
+            print("CONNECTED!!")
             self.state.connected = 1
 
         # logging
@@ -224,30 +232,30 @@ class MuseServer(ServerThread):
     # @make_method('/muse/acc', 'fff')
     # def acc_callback(self, path, args):
     #     acc_x, acc_y, acc_z = args
-    # print "%s %f %f %f" % (path, acc_x, acc_y, acc_z)
+    # print("%s %f %f %f" % (path, acc_x, acc_y, acc_z))
 
     #receive jaw clench
     # @make_method('/muse/elements/jaw_clench', 'f')
     # def jaw_clench_callback(self, path, args):
     #     x = args
-    #     print "%s, %f" % (path, x[0])
+    #     print("%s, %f" % (path, x[0]))
 
     #receive blink
     # @make_method('/muse/elements/blink', 'f')
     # def blink_callback(self, path, args):
     #     x = args
-    #     print "%s, %f" % (path, x[0])
+    #     print("%s, %f" % (path, x[0]))
 
     #receive EEG data
     # @make_method('/muse/eeg', 'ffff')
     # def eeg_callback(self, path, args):
     #     l_ear, l_forehead, r_forehead, r_ear = args
-    #     print "%s %f %f %f %f" % (path, l_ear, l_forehead, r_forehead, r_ear)
+    #     print("%s %f %f %f %f" % (path, l_ear, l_forehead, r_forehead, r_ear))
 
     #handle unexpected messages
     # @make_method(None, None)
     # def fallback(self, path, args, types, src):
-        # print "Unknown message \
+        # print("Unknown message \)
         # \n\t Source: '%s' \
         # \n\t Address: '%s' \
         # \n\t Types: '%s ' \
@@ -256,8 +264,8 @@ class MuseServer(ServerThread):
 
 try:
     server = MuseServer()
-except ServerError, err:
-    print str(err)
+except ServerError as err:
+    print(str(err))
     sys.exit()
 
 server.start()
